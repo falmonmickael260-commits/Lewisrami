@@ -43,7 +43,9 @@ function FlightCardBase({ flight, onLanded, reducedMotion }: FlightCardProps) {
   const width = flight.toWidth;
   const height = width / CARD_RATIO;
   const startScale = flight.fromWidth / flight.toWidth;
-  const peakY = Math.min(flight.fromY, flight.toY) - flight.arc;
+  // Le sommet de l'arc reste sous la barre supérieure : une carte ne doit
+  // jamais sortir de l'écran ni passer par-dessus l'interface.
+  const peakY = Math.max(76, Math.min(flight.fromY, flight.toY) - flight.arc);
 
   if (reducedMotion) {
     return (
