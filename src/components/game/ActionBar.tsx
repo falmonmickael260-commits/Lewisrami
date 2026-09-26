@@ -75,12 +75,18 @@ export function ActionBar({
           Passer
         </Button>
       )}
+      {/* Une seule impulsion quand le coup devient jouable. Une pulsation en
+          boucle rendrait la cible mouvante sous le pouce — et n'apporterait
+          rien une fois l'attention captée. */}
       <motion.div
         className="flex-[1.3] sm:flex-none"
-        animate={canPlay ? { scale: [1, 1.025, 1] } : { scale: 1 }}
-        transition={
-          canPlay ? { duration: 1.9, repeat: Infinity, ease: 'easeInOut' } : { duration: 0.2 }
-        }
+        variants={{
+          idle: { scale: 1 },
+          ready: { scale: [1, 1.045, 1] },
+        }}
+        initial={false}
+        animate={canPlay ? 'ready' : 'idle'}
+        transition={{ duration: 0.42, ease: 'easeOut' }}
       >
         <Button size="md" variant="primary" onClick={onPlay} disabled={!canPlay} block>
           {primaryLabel}
