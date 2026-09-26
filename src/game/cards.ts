@@ -64,12 +64,16 @@ export function cardLabel(card: Card): string {
   return `${RANK_NAMES[card.rank]} de ${SUIT_NAMES[card.suit]}`;
 }
 
+/** La dame est le seul nom de carte féminin : « une dame », mais « un roi ». */
+const FEMININE_RANKS: ReadonlySet<Rank> = new Set<Rank>([12]);
+
 export function comboLabel(rank: Rank, count: number): string {
   const base = RANK_NAMES[rank];
-  if (count === 1) return `un ${base}`;
-  if (count === 2) return `une paire de ${base}s`;
-  if (count === 3) return `un brelan de ${base}s`;
-  return `un carré de ${base}s`;
+  if (count === 1) return `${FEMININE_RANKS.has(rank) ? 'une' : 'un'} ${base}`;
+  const plural = base.endsWith('s') ? base : `${base}s`;
+  if (count === 2) return `une paire de ${plural}`;
+  if (count === 3) return `un brelan de ${plural}`;
+  return `un carré de ${plural}`;
 }
 
 export function makeCardId(rank: Rank, suit: Suit): CardId {

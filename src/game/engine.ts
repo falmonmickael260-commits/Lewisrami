@@ -713,6 +713,37 @@ export function reduce(
       return startRound(state, now);
     }
 
+    case 'restart': {
+      if (state.phase !== 'game_over') return { state, events: [] };
+      const player = findPlayer(state, action.playerId);
+      if (!player?.isHost) return { state, events: [] };
+      return {
+        state: bump({
+          ...state,
+          phase: 'lobby',
+          roundNumber: 0,
+          players: state.players.map((p) => ({
+            ...p,
+            hand: [],
+            passed: false,
+            finishPosition: null,
+            role: null,
+            score: 0,
+          })),
+          pile: [],
+          requiredCount: null,
+          lastPlayerId: null,
+          finishOrder: [],
+          exchange: null,
+          currentPlayerId: null,
+          turnDeadline: null,
+          phaseEndsAt: null,
+          mustOpenWithQueenOfSpades: true,
+        }),
+        events: [],
+      };
+    }
+
     case 'tick':
       return tick(state, now);
 

@@ -135,6 +135,7 @@ export type GameAction =
   | { type: 'pass'; playerId: string }
   | { type: 'exchange_give'; playerId: string; cardIds: CardId[] }
   | { type: 'next_round'; playerId: string }
+  | { type: 'restart'; playerId: string }
   | { type: 'tick' };
 
 /* ------------------------------------------------------------------ */
