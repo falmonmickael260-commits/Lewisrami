@@ -107,8 +107,8 @@ export function CarreOverlay({
           {/* Le bloc de texte descend sous le pli : les quatre cartes restent
               entièrement visibles pendant tout le moment. */}
           <div
-            className="relative flex flex-col items-center gap-3 px-6 text-center"
-            style={{ transform: 'translateY(16vh)' }}
+            className="relative flex flex-col items-center gap-2 px-6 text-center"
+            style={{ transform: 'translateY(7vh)' }}
           >
             <motion.div
               initial={{ scale: 0.55, opacity: 0, rotate: -6 }}
