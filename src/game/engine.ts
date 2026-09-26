@@ -11,7 +11,6 @@ import {
   worstCards,
 } from './rules';
 import type {
-  Card,
   CardId,
   ExchangeTransfer,
   GameAction,
@@ -29,7 +28,7 @@ export const MAX_PLAYERS = 8;
 /** Durée de l'animation de distribution, pendant laquelle la table est verrouillée. */
 export const DEAL_MS = 2600;
 /** Durée de la séquence de résultats avant la manche suivante. */
-export const ROUND_END_MS = 14000;
+export const ROUND_END_MS = 12000;
 /** Un joueur déconnecté ne bloque pas la table : son tour expire plus vite. */
 export const DISCONNECTED_TURN_MS = 6000;
 
@@ -141,16 +140,6 @@ export function roleForPosition(position: number, playerCount: number): Role {
 
 export function pointsForPosition(position: number, playerCount: number): number {
   return playerCount - position;
-}
-
-function buildStandings(state: GameState): StandingEntry[] {
-  const count = state.players.length;
-  return state.finishOrder.map((playerId, position) => ({
-    playerId,
-    position,
-    role: roleForPosition(position, count),
-    points: pointsForPosition(position, count),
-  }));
 }
 
 /* ------------------------------------------------------------------ */
@@ -788,8 +777,4 @@ export function nextDeadline(state: GameState): number | null {
   if (state.phase === 'exchange') return state.exchange?.deadline ?? null;
   if (state.phase === 'playing') return state.turnDeadline;
   return null;
-}
-
-export function handOf(state: GameState, playerId: string): Card[] {
-  return findPlayer(state, playerId)?.hand ?? [];
 }

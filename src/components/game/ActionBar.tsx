@@ -16,6 +16,8 @@ interface ActionBarProps {
   onPass: () => void;
   onClear: () => void;
   hasSelection: boolean;
+  /** Masque « Passer » là où l'action n'a aucun sens (phase d'échange). */
+  showPass: boolean;
   /** Pastille du joueur local (avatar + chrono), rendue à gauche du statut. */
   badge: React.ReactNode;
 }
@@ -37,6 +39,7 @@ export function ActionBar({
   onPass,
   onClear,
   hasSelection,
+  showPass,
   badge,
 }: ActionBarProps) {
   const buttons = (
@@ -61,15 +64,17 @@ export function ActionBar({
           </motion.div>
         )}
       </AnimatePresence>
-      <Button
-        size="md"
-        variant="secondary"
-        onClick={onPass}
-        disabled={!canPass}
-        className="flex-1 sm:flex-none"
-      >
-        Passer
-      </Button>
+      {showPass && (
+        <Button
+          size="md"
+          variant="secondary"
+          onClick={onPass}
+          disabled={!canPass}
+          className="flex-1 sm:flex-none"
+        >
+          Passer
+        </Button>
+      )}
       <motion.div
         className="flex-[1.3] sm:flex-none"
         animate={canPlay ? { scale: [1, 1.025, 1] } : { scale: 1 }}

@@ -13,7 +13,8 @@ const TONES: Record<Notice['tone'], string> = {
 export function Notices({ notices }: { notices: Notice[] }) {
   return (
     <div
-      className="pointer-events-none fixed inset-x-0 top-[max(env(safe-area-inset-top),0.5rem)] z-50 flex flex-col items-center gap-1.5 px-4"
+      className="pointer-events-none fixed inset-x-0 z-50 flex flex-col items-center gap-1.5 px-4"
+      style={{ top: 'calc(max(env(safe-area-inset-top), 0.5rem) + 3.4rem)' }}
       role="log"
       aria-live="polite"
     >

@@ -80,12 +80,15 @@ src/
 ├─ server/          État des salles, diffusion SSE, chrono, persistance optionnelle
 ├─ app/api/         Routes REST + flux temps réel
 ├─ components/
-│  ├─ card/         Cartes SVG (enseignes, figures, dos)
+│  ├─ card/         Cartes SVG (enseignes, figures, dos, dos allégé)
 │  ├─ game/         Table, sièges, pli, éventail, couche de vol, overlays
 │  ├─ lobby/ home/ room/
 │  └─ ui/
-├─ hooks/           Connexion temps réel, chorégraphie des animations
-└─ lib/             Audio procédural, session locale, utilitaires
+├─ hooks/
+│  ├─ useRoom       Connexion temps réel et reprise après coupure
+│  ├─ useDirector   Événements serveur → trajectoires, sons et moments
+│  └─ useHandSelection  Sélection de cartes et validation immédiate
+└─ lib/             Audio procédural, haptique, session locale
 ```
 
 ### Machine d'état
@@ -126,6 +129,10 @@ La reconnexion est triviale : le client garde son jeton en `localStorage`,
 `EventSource` se reconnecte avec un repli exponentiel, et la première vue reçue
 fait autorité. Rafraîchir la page, changer de réseau ou mettre le téléphone en
 veille ne fait pas perdre la partie.
+
+Un joueur qui ferme l'onglet est marqué hors ligne et son tour expire en 6 s au
+lieu de 30 : une déconnexion n'immobilise jamais la table. Un départ explicite
+libère la place immédiatement tant que la partie n'a pas commencé.
 
 ### Supabase (optionnel)
 
@@ -169,6 +176,10 @@ Chaque animation sert la lisibilité du jeu :
 
 Les cartes en vol atterrissent **exactement** à la position que le pli leur
 réserve : aucune carte ne saute au moment de son intégration.
+
+C'est le client qui décide quand les cartes quittent la table, pas le serveur.
+Le moteur ferme un pli dès la quatrième carte d'un carré posée ; sans cette
+séparation, les quatre cartes disparaîtraient avant même d'avoir atterri.
 
 `prefers-reduced-motion` est respecté : les trajectoires sont remplacées par des
 fondus courts, sans jamais désactiver de fonctionnalité.

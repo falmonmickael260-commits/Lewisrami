@@ -104,12 +104,17 @@ export function CarreOverlay({
             </>
           )}
 
-          <div className="relative flex flex-col items-center gap-3 px-6 text-center">
+          {/* Le bloc de texte descend sous le pli : les quatre cartes restent
+              entièrement visibles pendant tout le moment. */}
+          <div
+            className="relative flex flex-col items-center gap-3 px-6 text-center"
+            style={{ transform: 'translateY(16vh)' }}
+          >
             <motion.div
               initial={{ scale: 0.55, opacity: 0, rotate: -6 }}
               animate={{ scale: [0.55, 1.12, 1], opacity: 1, rotate: 0 }}
               transition={{ duration: 0.6, times: [0, 0.6, 1], ease: [0.16, 1, 0.3, 1] }}
-              className="text-gradient-gold font-display text-[clamp(3rem,16vw,7rem)] leading-none drop-shadow-[0_8px_30px_rgba(0,0,0,0.7)]"
+              className="text-gradient-gold font-display text-[clamp(2.8rem,13vw,6rem)] leading-none drop-shadow-[0_8px_30px_rgba(0,0,0,0.7)]"
             >
               CARRÉ
             </motion.div>

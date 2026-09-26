@@ -8,17 +8,6 @@ export const ROLE_META: Record<Role, { label: string; icon: string; tone: string
   trou_du_cul: { label: 'Trou du Cul', icon: '💩', tone: 'text-amber-700' },
 };
 
-export const POSITION_LABELS = [
-  'Président',
-  'Vice-Président',
-  'Troisième',
-  'Quatrième',
-  'Cinquième',
-  'Sixième',
-  'Septième',
-  'Trou du Cul',
-];
-
 export function positionLabel(position: number, total: number): string {
   if (position === 0) return 'Président';
   if (position === total - 1) return 'Trou du Cul';

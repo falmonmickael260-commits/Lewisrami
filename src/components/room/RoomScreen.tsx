@@ -9,6 +9,7 @@ import { IdentityPicker } from '@/components/lobby/IdentityPicker';
 import { Lobby } from '@/components/lobby/Lobby';
 import { Button } from '@/components/ui/Button';
 import { useRoom } from '@/hooks/useRoom';
+import { AVATARS, randomAvatar } from '@/lib/avatars';
 import { clearSession, loadIdentity, loadSession, saveIdentity, saveSession } from '@/lib/session';
 import { sound } from '@/lib/sound';
 
@@ -81,7 +82,9 @@ function ConnectedRoom({ code, onRejoin }: { code: string; onRejoin: () => void 
   const room = useRoom(code);
   const [kicked, setKicked] = useState(false);
 
-  const leave = useCallback(() => {
+  const leave = useCallback(async () => {
+    // On prévient le serveur : dans le salon, la place est libérée aussitôt.
+    await room.send('leave');
     room.leave();
     window.location.href = '/';
   }, [room]);
@@ -121,12 +124,12 @@ function ConnectedRoom({ code, onRejoin }: { code: string; onRejoin: () => void 
   if (!room.view) return <Splash label="Synchronisation…" />;
 
   if (room.view.phase === 'lobby') {
-    return <Lobby view={room.view} code={code} room={room} onLeave={leave} />;
+    return <Lobby view={room.view} code={code} room={room} onLeave={() => void leave()} />;
   }
 
   return (
     <AnchorProvider>
-      <GameTable room={room} code={code} onLeave={leave} />
+      <GameTable room={room} code={code} onLeave={() => void leave()} />
     </AnchorProvider>
   );
 }
@@ -141,7 +144,7 @@ function JoinGate({
   onJoined: () => void;
 }) {
   const [name, setName] = useState('');
-  const [avatar, setAvatar] = useState('🦊');
+  const [avatar, setAvatar] = useState<string>(AVATARS[0]);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -150,6 +153,8 @@ function JoinGate({
     if (identity) {
       setName(identity.name);
       setAvatar(identity.avatar);
+    } else {
+      setAvatar(randomAvatar());
     }
   }, []);
 

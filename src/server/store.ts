@@ -103,10 +103,6 @@ export function createRoom(settings?: Partial<GameState['settings']>): Room {
   return room;
 }
 
-export function getRoom(code: string): Room | undefined {
-  return registry.rooms.get(code);
-}
-
 /** Récupère une salle en mémoire, ou la restaure depuis Supabase si configuré. */
 export async function findRoom(code: string): Promise<Room | undefined> {
   const existing = registry.rooms.get(code);
@@ -309,6 +305,24 @@ export function kickPlayer(room: Room, requesterId: string | null, targetId: str
   return null;
 }
 
+/**
+ * Départ volontaire. Dans le salon, la place est libérée immédiatement ;
+ * en cours de partie le joueur reste à table (il peut revenir), mais il est
+ * marqué hors ligne pour que son tour n'immobilise pas les autres.
+ */
+export function leaveRoom(room: Room, playerId: string) {
+  if (room.state.phase === 'lobby') {
+    room.state = removePlayer(room.state, playerId);
+    for (const [token, id] of room.tokens) {
+      if (id === playerId) room.tokens.delete(token);
+    }
+  } else {
+    room.state = setConnected(room.state, playerId, false);
+  }
+  commit(room, []);
+  return null;
+}
+
 export function updateSettings(
   room: Room,
   requesterId: string | null,
@@ -387,8 +401,4 @@ export function detach(room: Room, subscriber: Subscriber) {
     timer.unref?.();
     room.dropTimers.set(playerId, timer);
   }
-}
-
-export function roomCount(): number {
-  return registry.rooms.size;
 }

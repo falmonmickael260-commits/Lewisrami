@@ -23,7 +23,8 @@ export function ExchangePanel({ view }: { view: PlayerView }) {
       animate={{ opacity: 1, scale: 1, y: 0 }}
       exit={{ opacity: 0, scale: 0.96 }}
       transition={{ type: 'spring', stiffness: 300, damping: 26 }}
-      className="panel pointer-events-none w-[min(20rem,88vw)] rounded-2xl px-4 py-3"
+      className="panel pointer-events-none w-[min(19rem,86vw)] rounded-2xl px-4 py-3"
+      style={{ background: 'rgba(5,24,18,0.93)' }}
       role="status"
       aria-live="polite"
     >

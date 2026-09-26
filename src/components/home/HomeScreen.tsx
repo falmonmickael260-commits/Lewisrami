@@ -8,6 +8,7 @@ import { PlayingCard } from '@/components/card/PlayingCard';
 import { IdentityPicker } from '@/components/lobby/IdentityPicker';
 import { RulesSheet } from '@/components/game/RulesSheet';
 import { Button } from '@/components/ui/Button';
+import { AVATARS, randomAvatar } from '@/lib/avatars';
 import { loadIdentity, saveIdentity, saveSession } from '@/lib/session';
 import { sound } from '@/lib/sound';
 import { normalizeRoomCode } from '@/lib/roomCode';
@@ -84,7 +85,7 @@ function HeroCards() {
 export function HomeScreen() {
   const router = useRouter();
   const [name, setName] = useState('');
-  const [avatar, setAvatar] = useState('🦊');
+  const [avatar, setAvatar] = useState<string>(AVATARS[0]);
   const [code, setCode] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState<'create' | 'join' | null>(null);
@@ -95,6 +96,8 @@ export function HomeScreen() {
     if (identity) {
       setName(identity.name);
       setAvatar(identity.avatar);
+    } else {
+      setAvatar(randomAvatar());
     }
   }, []);
 

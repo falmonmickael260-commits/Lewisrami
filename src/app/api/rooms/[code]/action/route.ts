@@ -8,6 +8,7 @@ import {
   dispatch,
   findRoom,
   kickPlayer,
+  leaveRoom,
   playerIdForToken,
   updateSettings,
   type Room,
@@ -95,6 +96,9 @@ function handle(
       dispatch(room, { type: 'restart', playerId });
       return room.state.version === before ? 'Relance indisponible.' : null;
     }
+
+    case 'leave':
+      return leaveRoom(room, playerId);
 
     case 'add_bot':
       return addBot(room, playerId);

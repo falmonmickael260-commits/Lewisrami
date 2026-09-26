@@ -45,6 +45,8 @@ export interface Director {
   notices: Notice[];
   /** Incrémenté à chaque distribution : déclenche l'entrée animée de la main. */
   dealToken: number;
+  /** Incrémenté à chaque pose : déclenche le micro-zoom sur le centre de la table. */
+  focusToken: number;
   lastTrickWinnerId: string | null;
   noteLaunch: (cardId: string, anchor: Anchor) => void;
 }
@@ -69,6 +71,7 @@ export function useDirector({
   const [carre, setCarre] = useState<CarreMoment | null>(null);
   const [notices, setNotices] = useState<Notice[]>([]);
   const [dealToken, setDealToken] = useState(0);
+  const [focusToken, setFocusToken] = useState(0);
   const [lastTrickWinnerId, setLastTrickWinnerId] = useState<string | null>(null);
 
   const launchRects = useRef(new Map<string, Anchor>());
@@ -179,6 +182,7 @@ export function useDirector({
       const current = viewRef.current;
       const created: Flight[] = [];
       let carreInBatch = false;
+      let playInBatch = false;
 
       for (const { seq, event } of fresh) {
         switch (event.type) {
@@ -226,6 +230,8 @@ export function useDirector({
           }
 
           case 'play': {
+            playInBatch = true;
+            setFocusToken((token) => token + 1);
             pendingSetData.current.set(event.setId, {
               id: event.setId,
               playerId: event.playerId,
@@ -366,10 +372,13 @@ export function useDirector({
             const winner = event.playerId;
             // Un carré mérite d'être vu : on laisse les quatre cartes sur la
             // table le temps du moment, puis le pli part vers son gagnant.
-            const hold = reducedMotion ? 120 : carreInBatch ? 2400 : 980;
+            // Si la pose qui ferme le pli est dans le même lot, on attend que
+            // la carte soit arrivée et bien visible avant de balayer la table.
+            const hold = reducedMotion ? 120 : carreInBatch ? 2400 : playInBatch ? 1400 : 850;
             const startSweep = setTimeout(() => setSweepWinnerId(winner), hold);
             const finish = setTimeout(
               () => {
+                pendingSetData.current.clear();
                 setTableSets([]);
                 setSweepWinnerId(null);
               },
@@ -466,6 +475,7 @@ export function useDirector({
     carre,
     notices,
     dealToken,
+    focusToken,
     lastTrickWinnerId,
     noteLaunch,
   };

@@ -1,11 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import {
   DEAL_MS,
-  ROUND_END_MS,
+  DISCONNECTED_TURN_MS,
   addPlayer,
   createGame,
   reduce,
+  removePlayer,
   roleForPosition,
+  setConnected,
   startRound,
   tick,
 } from './engine';
@@ -315,5 +317,122 @@ describe('bots', () => {
     expect(state.roundNumber).toBe(2);
     const total = state.players.reduce((sum, p) => sum + p.score, 0);
     expect(total).toBe(2 * (4 + 3 + 2 + 1));
+  });
+});
+
+describe('cas limites', () => {
+  it('donne la main au joueur suivant si le gagnant du pli a terminé', () => {
+    let state = playingGame({
+      p0: ['13H'],
+      p1: ['3D', '4H'],
+      p2: ['5D', '6C'],
+      p3: ['7D', '8C'],
+    });
+    // p0 pose sa dernière carte : il termine tout en remportant le pli.
+    state = play(state, 'p0', '13H').state;
+    state = pass(state, 'p1').state;
+    state = pass(state, 'p2').state;
+    state = pass(state, 'p3').state;
+
+    expect(state.phase).toBe('playing');
+    expect(ids(state, 'p0').finishPosition).toBe(0);
+    // La main revient au joueur actif suivant, pas au joueur sorti.
+    expect(state.currentPlayerId).toBe('p1');
+    expect(state.pile).toHaveLength(0);
+  });
+
+  it('remporte le pli quand plus personne ne peut répondre', () => {
+    let state = playingGame({ p0: ['8H', '9H'], p1: ['3D'], p2: ['4C'] });
+    state = play(state, 'p0', '8H').state;
+    state = pass(state, 'p1').state;
+    state = pass(state, 'p2').state;
+    expect(state.currentPlayerId).toBe('p0');
+    expect(state.requiredCount).toBeNull();
+  });
+
+  it('refuse une combinaison mélangeant deux valeurs', () => {
+    const state = playingGame({ p0: ['8H', '9S'], p1: ['3D'], p2: ['4C'] });
+    const result = play(state, 'p0', '8H', '9S').state;
+    expect(result.pile).toHaveLength(0);
+    expect(result.players.find((p) => p.id === 'p0')!.hand).toHaveLength(2);
+  });
+
+  it('interdit de rejouer une carte déjà posée', () => {
+    let state = playingGame({ p0: ['8H', '9S'], p1: ['13D'], p2: ['14C'] });
+    state = play(state, 'p0', '8H').state;
+    state = pass(state, 'p1').state;
+    state = pass(state, 'p2').state;
+    const cheat = play(state, 'p0', '8H').state;
+    expect(cheat.pile).toHaveLength(0);
+  });
+
+  it('accélère le tour d’un joueur déconnecté', () => {
+    let state = playingGame({ p0: ['8H'], p1: ['13D', '3H'], p2: ['14C', '4H'] });
+    state = setConnected(state, 'p1', false);
+    state = play(state, 'p0', '8H').state;
+    expect(state.currentPlayerId).toBe('p1');
+    expect(state.turnTotalMs).toBe(DISCONNECTED_TURN_MS);
+    expect(state.turnDeadline! - 1000).toBe(DISCONNECTED_TURN_MS);
+  });
+
+  it('relance une partie terminée depuis le salon, scores remis à zéro', () => {
+    let state = gameWithPlayers(3);
+    state = {
+      ...state,
+      phase: 'game_over',
+      roundNumber: 3,
+      players: state.players.map((p) => ({ ...p, score: 5, role: 'neutre' as const })),
+    };
+    const refused = reduce(state, { type: 'restart', playerId: 'p1' }, 0).state;
+    expect(refused.phase).toBe('game_over');
+
+    const restarted = reduce(state, { type: 'restart', playerId: 'p0' }, 0).state;
+    expect(restarted.phase).toBe('lobby');
+    expect(restarted.roundNumber).toBe(0);
+    expect(restarted.players.every((p) => p.score === 0 && p.role === null)).toBe(true);
+    expect(restarted.mustOpenWithQueenOfSpades).toBe(true);
+  });
+
+  it('retire un joueur du salon et transfère le rôle d’hôte', () => {
+    let state = gameWithPlayers(4);
+    state = removePlayer(state, 'p0');
+    expect(state.players).toHaveLength(3);
+    expect(state.players[0].isHost).toBe(true);
+    expect(state.players.map((p) => p.seat)).toEqual([0, 1, 2]);
+  });
+
+  it('joue une partie à 3 et à 8 joueurs sans coup illégal', () => {
+    for (const count of [3, 8]) {
+      let state = gameWithPlayers(count, count * 7 + 1);
+      state = {
+        ...state,
+        players: state.players.map((p) => ({ ...p, isBot: true })),
+        settings: { ...state.settings, rounds: 1 },
+      };
+      state = reduce(state, { type: 'start_game', playerId: 'p0' }, 0).state;
+
+      let now = 0;
+      for (let i = 0; i < 6000 && state.phase !== 'game_over'; i++) {
+        now += 40;
+        const botId = state.currentPlayerId;
+        const action =
+          (state.phase === 'playing' && botId ? decideBotAction(state, botId) : null) ??
+          (state.phase === 'exchange'
+            ? (state.players.map((p) => decideBotAction(state, p.id)).find(Boolean) ?? null)
+            : null);
+        if (action) state = reduce(state, action, now).state;
+        else {
+          now = Math.max(now, (state.turnDeadline ?? state.phaseEndsAt ?? now) + 1);
+          state = tick(state, now).state;
+        }
+      }
+
+      expect(state.phase).toBe('game_over');
+      expect(state.finishOrder).toHaveLength(count);
+      expect(new Set(state.finishOrder).size).toBe(count);
+      // La manche s'arrête dès qu'il ne reste qu'un joueur : lui seul peut
+      // encore avoir des cartes en main.
+      expect(state.players.filter((p) => p.hand.length > 0).length).toBeLessThanOrEqual(1);
+    }
   });
 });
