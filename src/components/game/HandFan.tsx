@@ -17,8 +17,8 @@ interface HandFanProps {
   width: number;
   compact: boolean;
   interactive: boolean;
-  /** Change à chaque distribution : rejoue l'entrée en éventail. */
-  dealToken: number;
+  /** Décalage entre deux cartes à la distribution, en secondes. */
+  dealStagger: number;
   /** Décalage d'où partent les cartes lors de la distribution. */
   dealOrigin: { dx: number; dy: number };
   reducedMotion: boolean;
@@ -111,7 +111,7 @@ export function HandFan({
   width,
   compact,
   interactive,
-  dealToken,
+  dealStagger,
   dealOrigin,
   reducedMotion,
 }: HandFanProps) {
@@ -124,11 +124,14 @@ export function HandFan({
   const playable = useMemo(() => new Set(playableIds), [playableIds]);
   const selected = useMemo(() => new Set(selectedIds), [selectedIds]);
   const selectedIndexes = useMemo(
-    () => slots.map((slot, index) => (selected.has(slot.card.id) ? index : -1)).filter((i) => i >= 0),
+    () =>
+      slots
+        .map((slot, index) => (selected.has(slot.card.id) ? index : -1))
+        .filter((index) => index >= 0),
     [slots, selected],
   );
 
-  const stepDelay = reducedMotion ? 0 : Math.min(0.055, 1.9 / Math.max(cards.length, 1));
+  const stagger = reducedMotion ? 0 : dealStagger;
 
   return (
     <div
@@ -141,11 +144,12 @@ export function HandFan({
       {slots.map((slot, index) => {
         const isSelected = selected.has(slot.card.id);
         const isPlayable = playable.has(slot.card.id);
+        // Les cartes voisines s'écartent légèrement de la carte soulevée.
         const neighbourPush = selectedIndexes.reduce((sum, selectedIndex) => {
           if (selectedIndex === index) return sum;
           const distance = index - selectedIndex;
           if (Math.abs(distance) > 2) return sum;
-          return sum + Math.sign(distance) * (cardWidth * 0.1) / Math.abs(distance);
+          return sum + (Math.sign(distance) * (cardWidth * 0.1)) / Math.abs(distance);
         }, 0);
 
         return (
@@ -168,55 +172,73 @@ export function HandFan({
               zIndex: isSelected ? 200 + index : index,
               borderRadius: '7%',
             }}
-            initial={
-              reducedMotion
-                ? { opacity: 0 }
-                : {
-                    x: dealOrigin.dx - slot.x,
-                    y: dealOrigin.dy,
-                    rotate: -14,
-                    scale: 0.7,
-                    opacity: 0,
-                  }
-            }
+            initial={false}
             animate={{
               x: slot.x + neighbourPush,
               y: slot.y - (isSelected ? cardHeight * 0.26 : 0),
               rotate: slot.rotate * (isSelected ? 0.25 : 1),
               scale: isSelected ? 1.07 : 1,
-              opacity: 1,
             }}
-            exit={{ opacity: 0, transition: { duration: 0.01 } }}
             transition={
               reducedMotion
-                ? { duration: 0.16 }
-                : {
-                    type: 'spring',
-                    stiffness: 340,
-                    damping: 28,
-                    mass: 0.7,
-                    delay: index * stepDelay * (dealToken >= 0 ? 1 : 0),
-                  }
+                ? { duration: 0.14 }
+                : { type: 'spring', stiffness: 360, damping: 28, mass: 0.7 }
             }
             whileHover={
               interactive && !isSelected
-                ? { y: slot.y - cardHeight * 0.12, transition: { type: 'spring', stiffness: 460, damping: 26 } }
+                ? {
+                    y: slot.y - cardHeight * 0.12,
+                    transition: { type: 'spring', stiffness: 460, damping: 26 },
+                  }
                 : undefined
             }
             whileTap={interactive ? { scale: isSelected ? 1.03 : 0.98 } : undefined}
           >
-            <PlayingCard
-              card={slot.card}
-              width={cardWidth}
-              dimmed={interactive && !isPlayable && !isSelected}
-              elevation={isSelected ? 'lift' : 'rest'}
-            />
-            {isSelected && (
-              <span
-                className="pointer-events-none absolute -inset-[2px] rounded-[8.5%] ring-[2.5px] ring-gold-300"
-                style={{ boxShadow: '0 0 0 1px rgba(10,20,14,0.55), 0 0 26px 2px rgba(236,208,138,0.55)' }}
+            {/* Couche d'arrivée : la carte vient de la pioche à la distribution.
+                Séparée de la couche de placement pour que le délai de
+                distribution ne retarde jamais la réaction à la sélection. */}
+            <motion.div
+              className="h-full w-full will-animate"
+              initial={
+                reducedMotion
+                  ? { opacity: 0 }
+                  : {
+                      x: dealOrigin.dx - slot.x,
+                      y: dealOrigin.dy,
+                      rotate: -16,
+                      scale: 0.66,
+                      opacity: 0,
+                    }
+              }
+              animate={{ x: 0, y: 0, rotate: 0, scale: 1, opacity: 1 }}
+              transition={
+                reducedMotion
+                  ? { duration: 0.2, delay: index * 0.01 }
+                  : {
+                      type: 'spring',
+                      stiffness: 320,
+                      damping: 26,
+                      mass: 0.8,
+                      delay: index * stagger,
+                    }
+              }
+            >
+              <PlayingCard
+                card={slot.card}
+                width={cardWidth}
+                dimmed={interactive && !isPlayable && !isSelected}
+                elevation={isSelected ? 'lift' : 'rest'}
               />
-            )}
+              {isSelected && (
+                <span
+                  className="pointer-events-none absolute -inset-[2px] rounded-[8.5%] ring-[2.5px] ring-gold-300"
+                  style={{
+                    boxShadow:
+                      '0 0 0 1px rgba(10,20,14,0.55), 0 0 26px 2px rgba(236,208,138,0.55)',
+                  }}
+                />
+              )}
+            </motion.div>
           </motion.button>
         );
       })}

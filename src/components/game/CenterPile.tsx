@@ -1,17 +1,18 @@
 'use client';
 
 import { AnimatePresence, motion } from 'framer-motion';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { PlayedSet } from '@/game/types';
 import { PlayingCard } from '@/components/card/PlayingCard';
 import { anchorKeys, useAnchors } from './Anchors';
 import { combinedOffset } from './pileLayout';
 
 interface CenterPileProps {
-  pile: PlayedSet[];
-  settled: Set<string>;
+  /** Poses affichées : la couche d'animation décide de leur durée de vie. */
+  sets: PlayedSet[];
   cardWidth: number;
-  winnerId: string | null;
+  /** Non nul pendant le balayage du pli vers son gagnant. */
+  sweepWinnerId: string | null;
   reducedMotion: boolean;
 }
 
@@ -20,52 +21,34 @@ const SWEEP_MS = 620;
 /**
  * Le pli au centre de la table.
  *
- * Les poses ne sont affichées qu'une fois leur vol terminé, et les positions
- * utilisées ici sont exactement celles visées par les cartes en vol : une carte
- * qui atterrit ne bouge donc jamais d'un pixel au moment de son intégration.
+ * Les positions utilisées ici sont exactement celles visées par les cartes en
+ * vol : une carte qui atterrit ne bouge donc jamais d'un pixel au moment de son
+ * intégration au pli.
  */
 export function CenterPile({
-  pile,
-  settled,
+  sets,
   cardWidth,
-  winnerId,
+  sweepWinnerId,
   reducedMotion,
 }: CenterPileProps) {
   const { bind, read } = useAnchors();
-  const [shown, setShown] = useState<PlayedSet[]>([]);
   const [sweep, setSweep] = useState<{ dx: number; dy: number } | null>(null);
-  const shownRef = useRef<PlayedSet[]>([]);
-  shownRef.current = shown;
 
   useEffect(() => {
-    const visible = pile.filter((set) => settled.has(set.id));
-    if (visible.length > 0) {
-      setShown(visible);
+    if (!sweepWinnerId) {
       setSweep(null);
       return;
     }
-    if (pile.length > 0) return;
-    if (shownRef.current.length === 0) return;
-
     const pileAnchor = read(anchorKeys.pile);
-    const seatAnchor = winnerId ? read(anchorKeys.seat(winnerId)) : null;
+    const seatAnchor = read(anchorKeys.seat(sweepWinnerId));
     setSweep(
       pileAnchor && seatAnchor
         ? { dx: seatAnchor.x - pileAnchor.x, dy: seatAnchor.y - pileAnchor.y }
         : { dx: 0, dy: -60 },
     );
+  }, [sweepWinnerId, read]);
 
-    const timer = setTimeout(
-      () => {
-        setShown([]);
-        setSweep(null);
-      },
-      reducedMotion ? 60 : SWEEP_MS,
-    );
-    return () => clearTimeout(timer);
-  }, [pile, settled, read, winnerId, reducedMotion]);
-
-  const topSetId = shown[shown.length - 1]?.id;
+  const topSetId = sets[sets.length - 1]?.id;
 
   return (
     <div className="pointer-events-none relative grid place-items-center">
@@ -83,12 +66,12 @@ export function CenterPile({
             'radial-gradient(ellipse at 50% 45%, rgba(0,0,0,0.34), rgba(0,0,0,0.05) 62%, transparent 76%)',
           boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.05)',
         }}
-        animate={{ opacity: shown.length > 0 ? 0.85 : 0.5 }}
+        animate={{ opacity: sets.length > 0 ? 0.85 : 0.5 }}
         transition={{ duration: 0.4 }}
       />
 
       <AnimatePresence>
-        {shown.map((set) =>
+        {sets.map((set) =>
           set.cards.map((card, index) => {
             const offset = combinedOffset(
               set.id,
@@ -123,7 +106,7 @@ export function CenterPile({
                 }
                 transition={
                   sweep
-                    ? { duration: SWEEP_MS / 1000, ease: [0.4, 0, 0.7, 0.2] }
+                    ? { duration: reducedMotion ? 0.12 : SWEEP_MS / 1000, ease: [0.4, 0, 0.7, 0.2] }
                     : { type: 'spring', stiffness: 300, damping: 26 }
                 }
               >
@@ -133,7 +116,10 @@ export function CenterPile({
                   elevation="rest"
                   style={
                     isTop
-                      ? { boxShadow: '0 2px 5px rgba(0,0,0,0.35), 0 22px 40px -16px rgba(0,0,0,0.7)' }
+                      ? {
+                          boxShadow:
+                            '0 2px 5px rgba(0,0,0,0.35), 0 22px 40px -16px rgba(0,0,0,0.7)',
+                        }
                       : undefined
                   }
                 />

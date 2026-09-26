@@ -17,6 +17,13 @@ interface RoundResultsProps {
 
 const MEDALS = ['👑', '🥈', '🥉'];
 
+/** Le dernier reçoit toujours le 💩, quelle que soit la taille de la table. */
+function rankIcon(index: number, total: number, fallback: string): string {
+  if (index === 0) return MEDALS[0];
+  if (index === total - 1) return '💩';
+  return MEDALS[index] ?? fallback;
+}
+
 function ordered(view: PlayerView): PublicPlayer[] {
   const byId = new Map(view.players.map((p) => [p.id, p]));
   if (view.phase === 'game_over') {
@@ -119,7 +126,7 @@ export function RoundResults({
                     />
                   )}
                   <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-ink-950/60 text-lg">
-                    {MEDALS[index] ?? player.avatar}
+                    {rankIcon(index, list.length, player.avatar)}
                   </span>
                   <div className="min-w-0 flex-1">
                     <p

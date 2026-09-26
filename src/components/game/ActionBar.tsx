@@ -88,7 +88,7 @@ export function ActionBar({
     <div className="mx-auto w-full max-w-3xl px-3">
       <div className="flex items-center gap-2.5">
         {badge}
-        <div className="min-w-0 flex-1">
+        <div className="min-w-0 flex-1" role="status" aria-live="polite">
           <motion.p
             key={statusText}
             initial={{ opacity: 0, y: 4 }}

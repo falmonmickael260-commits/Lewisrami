@@ -19,6 +19,8 @@ interface PlayerSeatProps {
   compact: boolean;
   /** Version resserrée pour les tables nombreuses sur petit écran. */
   dense?: boolean;
+  /** Compteur affiché pendant la distribution, le temps que les cartes arrivent. */
+  cardCountOverride?: number;
 }
 
 /** Éventail réduit de dos de cartes : lecture immédiate du nombre de cartes restantes. */
@@ -57,8 +59,10 @@ function PlayerSeatBase({
   skew,
   compact,
   dense = false,
+  cardCountOverride,
 }: PlayerSeatProps) {
   const { bind } = useAnchors();
+  const cardCount = cardCountOverride ?? player.cardCount;
   const avatarSize = dense ? 38 : compact ? 46 : 58;
   const role = player.role ? ROLE_META[player.role] : null;
   const isOut = player.finishPosition !== null;
@@ -147,7 +151,7 @@ function PlayerSeatBase({
           </span>
         ) : (
           <div className="flex items-center gap-1.5">
-            {!dense && <MiniFan count={player.cardCount} width={compact ? 16 : 20} />}
+            {!dense && <MiniFan count={cardCount} width={compact ? 16 : 20} />}
             <span
               className={
                 dense
@@ -155,7 +159,7 @@ function PlayerSeatBase({
                   : 'text-[0.72rem] font-semibold tabular-nums text-cream/70'
               }
             >
-              {dense ? `🂠 ${player.cardCount}` : player.cardCount}
+              {dense ? `🂠 ${cardCount}` : cardCount}
             </span>
           </div>
         )}

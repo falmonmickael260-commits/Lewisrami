@@ -51,6 +51,13 @@ export function rankLabel(rank: Rank): string {
   return RANK_LABELS[rank];
 }
 
+/** Nom complet de la valeur (« dame »), par opposition à l'index court (« D »). */
+export function rankName(rank: Rank, plural = false): string {
+  const name = RANK_NAMES[rank];
+  if (!plural || name.endsWith('s')) return name;
+  return `${name}s`;
+}
+
 export function suitSymbol(suit: Suit): string {
   return SUIT_SYMBOLS[suit];
 }

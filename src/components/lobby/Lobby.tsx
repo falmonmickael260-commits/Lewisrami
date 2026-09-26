@@ -187,7 +187,9 @@ export function Lobby({ view, code, room, onLeave }: LobbyProps) {
           </section>
         )}
 
-        <div className="mt-auto flex flex-col gap-2 pt-2">
+        {/* Barre d'action collée en bas : le bouton reste atteignable même
+            quand la liste des joueurs dépasse l'écran. */}
+        <div className="sticky bottom-0 -mx-4 mt-auto flex flex-col gap-2 bg-[linear-gradient(to_top,rgba(4,20,15,0.96)_55%,transparent)] px-4 pb-2 pt-4">
           <Button variant="ghost" size="sm" onClick={() => setRulesOpen(true)}>
             Voir les règles
           </Button>

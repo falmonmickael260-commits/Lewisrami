@@ -1,19 +1,22 @@
 'use client';
 
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { comboLabel } from '@/game/cards';
+import { DEAL_MS } from '@/game/engine';
 import { canBeat, getCombo } from '@/game/rules';
 import type { Card } from '@/game/types';
 import type { PlayerView } from '@/game/view';
 import { QUEEN_OF_SPADES } from '@/game/cards';
 import { useDirector } from '@/hooks/useDirector';
 import type { RoomHandle } from '@/hooks/useRoom';
+import { haptic } from '@/lib/haptics';
 import { sound } from '@/lib/sound';
 import { anchorKeys, useAnchors } from './Anchors';
 import { ActionBar } from './ActionBar';
 import { CarreOverlay } from './CarreOverlay';
 import { CenterPile } from './CenterPile';
+import { ExchangePanel } from './ExchangePanel';
 import { FlightLayer } from './FlightLayer';
 import { HandFan } from './HandFan';
 import { Notices } from './Notices';
@@ -93,16 +96,26 @@ export function GameTable({
 
   useEffect(() => setSoundOn(sound().isEnabled()), []);
 
-  useEffect(() => {
+  // Mesure avant peinture : la main n'est montée qu'une fois la table mesurée,
+  // pour que les cartes partent tout de suite du bon endroit à la distribution.
+  useLayoutEffect(() => {
     const element = tableRef.current;
     if (!element) return;
-    const observer = new ResizeObserver(([entry]) => {
-      setSize({ width: entry.contentRect.width, height: entry.contentRect.height });
-    });
+    const measure = () => {
+      setSize({ width: element.clientWidth, height: element.clientHeight });
+      const deck = read(anchorKeys.deck);
+      const hand = read(anchorKeys.hand);
+      setDealOrigin(
+        deck && hand
+          ? { dx: deck.x - hand.x, dy: deck.y - hand.y }
+          : { dx: 0, dy: -Math.max(180, element.clientHeight * 0.55) },
+      );
+    };
+    const observer = new ResizeObserver(measure);
     observer.observe(element);
-    setSize({ width: element.clientWidth, height: element.clientHeight });
+    measure();
     return () => observer.disconnect();
-  }, []);
+  }, [read]);
 
   const compact = size.width > 0 && size.width < 640;
   const pileCardWidth = useMemo(() => {
@@ -127,7 +140,24 @@ export function GameTable({
     const deck = read(anchorKeys.deck);
     const hand = read(anchorKeys.hand);
     if (deck && hand) setDealOrigin({ dx: deck.x - hand.x, dy: deck.y - hand.y });
-  }, [read, size.width, size.height, director.dealToken]);
+  }, [read, director.dealToken]);
+
+  // Pendant la distribution, les compteurs montent au rythme des cartes qui arrivent.
+  const [dealProgress, setDealProgress] = useState(1);
+  useEffect(() => {
+    if (view?.phase !== 'dealing' || view.phaseEndsAt === null) {
+      setDealProgress(1);
+      return;
+    }
+    const end = view.phaseEndsAt;
+    const tick = () =>
+      setDealProgress(
+        Math.max(0, Math.min(1, (Date.now() + room.clockSkew - (end - DEAL_MS)) / DEAL_MS)),
+      );
+    tick();
+    const timer = setInterval(tick, 110);
+    return () => clearInterval(timer);
+  }, [view?.phase, view?.phaseEndsAt, room.clockSkew]);
 
   const me = view?.players.find((p) => p.id === view.youId) ?? null;
   const currentPlayer = view?.players.find((p) => p.id === view.currentPlayerId) ?? null;
@@ -158,9 +188,11 @@ export function GameTable({
       setSelected((current) => {
         if (current.includes(cardId)) {
           sound().play('deselect');
+          haptic('tap');
           return current.filter((id) => id !== cardId);
         }
         sound().play('select');
+        haptic('select');
 
         if (exchangeMode && pendingTransfer) {
           if (current.length >= pendingTransfer.count) {
@@ -236,6 +268,7 @@ export function GameTable({
     }
     const ids = [...selected];
     setSelected([]);
+    haptic('impact');
     const ok = await room.send(exchangeMode ? 'exchange_give' : 'play', { cardIds: ids });
     if (!ok) {
       sound().play('error');
@@ -392,9 +425,14 @@ export function GameTable({
                   isYou={false}
                   hasLead={view.lastPlayerId === player.id}
                   deadline={view.currentPlayerId === player.id ? view.turnDeadline : null}
-                  totalMs={view.settings.turnSeconds * 1000}
+                  totalMs={view.turnTotalMs ?? view.settings.turnSeconds * 1000}
                   skew={room.clockSkew}
                   compact={compact}
+                  cardCountOverride={
+                    view.phase === 'dealing'
+                      ? Math.round(player.cardCount * dealProgress)
+                      : undefined
+                  }
                 />
               </div>
             );
@@ -410,14 +448,38 @@ export function GameTable({
                 isYou={false}
                 hasLead={view.lastPlayerId === player.id}
                 deadline={view.currentPlayerId === player.id ? view.turnDeadline : null}
-                totalMs={view.settings.turnSeconds * 1000}
+                totalMs={view.turnTotalMs ?? view.settings.turnSeconds * 1000}
                 skew={room.clockSkew}
                 compact
                 dense
+                cardCountOverride={
+                  view.phase === 'dealing'
+                    ? Math.round(player.cardCount * dealProgress)
+                    : undefined
+                }
               />
             ))}
           </div>
         )}
+
+        <div
+          className="absolute left-1/2 -translate-x-1/2 -translate-y-1/2"
+          style={{ top: ringLayout ? `${ARENA_CENTER_Y * 100}%` : `${pileTopPercent}%` }}
+        >
+          <CenterPile
+            sets={director.tableSets}
+            cardWidth={pileCardWidth}
+            sweepWinnerId={director.sweepWinnerId}
+            reducedMotion={reducedMotion}
+          />
+          <AnimatePresence>
+            {view.phase === 'exchange' && (
+              <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
+                <ExchangePanel view={view} />
+              </div>
+            )}
+          </AnimatePresence>
+        </div>
 
         <AnimatePresence>
           {view.phase === 'playing' && tableTop && (
@@ -461,6 +523,7 @@ export function GameTable({
 
       {/* ------------------------------- Main ------------------------------- */}
       <div className="pb-safe relative z-10 shrink-0 px-1">
+        {size.width > 0 && (
         <HandFan
           cards={hand}
           selectedIds={selected}
@@ -471,10 +534,14 @@ export function GameTable({
           interactive={
             (view.phase === 'playing' && isYourTurn) || exchangeMode
           }
-          dealToken={director.dealToken}
+          key={`hand-${view.roundNumber}`}
+          dealStagger={
+            view.phase === 'dealing' ? (DEAL_MS / 1000 / 52) * view.players.length : 0
+          }
           dealOrigin={dealOrigin}
           reducedMotion={reducedMotion}
         />
+        )}
       </div>
 
       <FlightLayer
@@ -543,7 +610,7 @@ function MySeatBadge({
       {isYourTurn && view.turnDeadline !== null && (
         <TurnTimer
           deadline={view.turnDeadline}
-          totalMs={view.settings.turnSeconds * 1000}
+          totalMs={view.turnTotalMs ?? view.settings.turnSeconds * 1000}
           skew={skew}
           size={58}
           alert

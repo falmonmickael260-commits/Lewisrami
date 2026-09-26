@@ -2,7 +2,7 @@
 
 import { AnimatePresence, motion } from 'framer-motion';
 import { useEffect, useMemo, useState } from 'react';
-import { rankLabel } from '@/game/cards';
+import { rankName } from '@/game/cards';
 import type { Rank } from '@/game/types';
 import type { CarreMoment } from '@/hooks/useDirector';
 
@@ -119,7 +119,7 @@ export function CarreOverlay({
               transition={{ delay: 0.24, duration: 0.4 }}
               className="text-lg font-semibold tracking-tight text-cream"
             >
-              {playerName} pose quatre {rankLabel(visible.rank as Rank)}
+              {playerName} pose quatre {rankName(visible.rank as Rank, true)}
             </motion.p>
             <motion.p
               initial={{ y: 10, opacity: 0, letterSpacing: '0.5em' }}

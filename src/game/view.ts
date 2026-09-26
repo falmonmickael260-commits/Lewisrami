@@ -52,6 +52,8 @@ export interface PlayerView {
   lastPlayerId: string | null;
   finishOrder: string[];
   turnDeadline: number | null;
+  /** Durée allouée au tour courant, pour un anneau de progression exact. */
+  turnTotalMs: number | null;
   phaseEndsAt: number | null;
   exchange: { transfers: PublicTransfer[]; deadline: number | null } | null;
   mustOpenWithQueenOfSpades: boolean;
@@ -152,6 +154,7 @@ export function buildPlayerView(
     lastPlayerId: state.lastPlayerId,
     finishOrder: state.finishOrder,
     turnDeadline: state.turnDeadline,
+    turnTotalMs: state.turnTotalMs,
     phaseEndsAt: state.phaseEndsAt,
     exchange,
     mustOpenWithQueenOfSpades: state.mustOpenWithQueenOfSpades,

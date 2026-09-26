@@ -114,6 +114,8 @@ export interface GameState {
   exchange: ExchangeState | null;
   /** Fin du tour courant (timestamp ms), utilisé par le timer serveur. */
   turnDeadline: number | null;
+  /** Durée allouée au tour courant : un joueur déconnecté a un délai réduit. */
+  turnTotalMs: number | null;
   /** Fin d'une phase temporisée (distribution, fin de manche). */
   phaseEndsAt: number | null;
   /** Compteur monotone incrémenté à chaque mutation : détection de désynchronisation. */

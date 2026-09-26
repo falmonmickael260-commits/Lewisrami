@@ -65,6 +65,7 @@ export function createGame(options?: {
     finishOrder: [],
     exchange: null,
     turnDeadline: null,
+    turnTotalMs: null,
     phaseEndsAt: null,
     version: 0,
     seed: options?.seed ?? ((Date.now() & 0x7fffffff) || 1),
@@ -181,13 +182,11 @@ function nextPlayerAfter(
   return null;
 }
 
-function turnDeadlineFor(state: GameState, playerId: string, now: number): number {
+function turnDurationFor(state: GameState, playerId: string): number {
   const player = findPlayer(state, playerId);
-  const ms =
-    player && !player.connected && !player.isBot
-      ? DISCONNECTED_TURN_MS
-      : state.settings.turnSeconds * 1000;
-  return now + ms;
+  return player && !player.connected && !player.isBot
+    ? DISCONNECTED_TURN_MS
+    : state.settings.turnSeconds * 1000;
 }
 
 function setTurn(
@@ -196,10 +195,13 @@ function setTurn(
   now: number,
   events: GameEvent[],
 ): GameState {
-  if (!playerId) return { ...state, currentPlayerId: null, turnDeadline: null };
-  const deadline = turnDeadlineFor(state, playerId, now);
+  if (!playerId) {
+    return { ...state, currentPlayerId: null, turnDeadline: null, turnTotalMs: null };
+  }
+  const total = turnDurationFor(state, playerId);
+  const deadline = now + total;
   events.push({ type: 'turn', playerId, deadline });
-  return { ...state, currentPlayerId: playerId, turnDeadline: deadline };
+  return { ...state, currentPlayerId: playerId, turnDeadline: deadline, turnTotalMs: total };
 }
 
 /* ------------------------------------------------------------------ */
@@ -235,6 +237,7 @@ export function startRound(state: GameState, now: number): ReduceResult {
     exchange: null,
     currentPlayerId: null,
     turnDeadline: null,
+    turnTotalMs: null,
     phaseEndsAt: now + DEAL_MS,
     seed: nextSeed(state.seed),
     mustOpenWithQueenOfSpades: roundNumber === 1,
@@ -366,6 +369,7 @@ function beginExchangeOrPlay(state: GameState, now: number): ReduceResult {
     exchange: { transfers: resolved, deadline: now + state.settings.turnSeconds * 1000 },
     currentPlayerId: null,
     turnDeadline: null,
+    turnTotalMs: null,
     phaseEndsAt: null,
   };
 
@@ -373,27 +377,9 @@ function beginExchangeOrPlay(state: GameState, now: number): ReduceResult {
     return startPlaying(next, now, events);
   }
 
-  // Les bots donnent immédiatement leurs cartes les plus faibles.
-  return resolveBotExchanges(next, now, events);
-}
-
-function resolveBotExchanges(
-  state: GameState,
-  now: number,
-  events: GameEvent[],
-): ReduceResult {
-  let current = state;
-  for (const transfer of current.exchange?.transfers ?? []) {
-    if (transfer.cardIds !== null) continue;
-    const donor = findPlayer(current, transfer.fromId);
-    if (!donor || (!donor.isBot && donor.connected)) continue;
-    if (!donor.isBot) continue;
-    const cardIds = worstCards(donor.hand, transfer.count).map((c) => c.id);
-    const result = commitExchange(current, transfer.fromId, cardIds, now, events);
-    current = result.state;
-    if (current.phase !== 'exchange') break;
-  }
-  return { state: bump(current), events };
+  // Les bots donnent leurs cartes via le planificateur, avec un délai humain :
+  // l'échange reste visible à l'écran au lieu de se résoudre instantanément.
+  return { state: bump(next), events };
 }
 
 function commitExchange(
@@ -520,6 +506,7 @@ function endRound(state: GameState, now: number, events: GameEvent[]): ReduceRes
     lastPlayerId: null,
     currentPlayerId: null,
     turnDeadline: null,
+    turnTotalMs: null,
     phaseEndsAt: isLastRound ? null : now + ROUND_END_MS,
     mustOpenWithQueenOfSpades: false,
   };
@@ -737,6 +724,7 @@ export function reduce(
           exchange: null,
           currentPlayerId: null,
           turnDeadline: null,
+          turnTotalMs: null,
           phaseEndsAt: null,
           mustOpenWithQueenOfSpades: true,
         }),

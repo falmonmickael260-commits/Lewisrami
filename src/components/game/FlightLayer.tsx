@@ -56,7 +56,13 @@ function FlightCardBase({ flight, onLanded, reducedMotion }: FlightCardProps) {
         style={{ x: flight.toX, y: flight.toY }}
       >
         <div style={{ marginLeft: -width / 2, marginTop: -height / 2 }}>
-          <PlayingCard card={flight.card ?? undefined} faceDown={!flight.card} width={width} elevation="lift" />
+          <PlayingCard
+            card={flight.card ?? undefined}
+            faceDown={!flight.card}
+            lite={!flight.card}
+            width={width}
+            elevation="lift"
+          />
         </div>
       </motion.div>
     );
@@ -112,6 +118,7 @@ function FlightCardBase({ flight, onLanded, reducedMotion }: FlightCardProps) {
           <PlayingCard
             card={flight.card ?? undefined}
             faceDown={!flight.card}
+            lite={!flight.card}
             width={width}
             elevation="fly"
           />
