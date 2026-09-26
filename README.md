@@ -201,6 +201,12 @@ directement dans le DOM en `requestAnimationFrame` : aucun rendu React par frame
 
 ---
 
+## Déploiement
+
+Voir [DEPLOY.md](DEPLOY.md). En résumé : le serveur doit tourner en **un seul
+processus persistant** (Render, Fly.io, Railway, Docker) — les plateformes
+serverless ne conviennent pas à l'état en mémoire et aux flux SSE.
+
 ## Licence
 
 Projet privé.

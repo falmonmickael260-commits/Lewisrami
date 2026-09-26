@@ -1,0 +1,24 @@
+# Déploiement Render — « New + » → « Blueprint » → ce dépôt.
+# Aucun jeton à créer : Render lit ce fichier depuis GitHub.
+#
+# Un seul exemplaire (numInstances: 1) : le serveur détient l'état des parties
+# en mémoire et pousse les mises à jour par SSE. Plusieurs exemplaires
+# répartiraient les joueurs d'une même salle sur des processus différents.
+services:
+  - type: web
+    name: le-president
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    plan: starter
+    region: frankfurt
+    numInstances: 1
+    healthCheckPath: /
+    envVars:
+      - key: NODE_ENV
+        value: production
+      # Persistance optionnelle : les salles survivent à un redéploiement.
+      # À renseigner dans l'onglet « Environment » de Render.
+      - key: NEXT_PUBLIC_SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false

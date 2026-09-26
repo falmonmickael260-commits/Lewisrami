@@ -1,0 +1,23 @@
+# Déploiement Fly.io : `fly launch --no-deploy` puis `fly deploy`.
+app = "le-president"
+primary_region = "cdg"
+
+[build]
+  dockerfile = "Dockerfile"
+
+[env]
+  NODE_ENV = "production"
+  PORT = "3000"
+
+[http_service]
+  internal_port = 3000
+  force_https = true
+  # Une seule machine, toujours allumée : l'état des parties vit en mémoire
+  # et les flux SSE sont attachés à ce processus.
+  auto_stop_machines = false
+  auto_start_machines = true
+  min_machines_running = 1
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "512mb"
