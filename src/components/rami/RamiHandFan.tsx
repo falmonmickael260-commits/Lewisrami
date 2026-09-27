@@ -182,6 +182,19 @@ export function RamiHandFan({
     return best;
   }, [layout.slots]);
 
+  /** Position de la frontière entre deux cartes, pour un repère qui tombe
+   * vraiment dans l'espace entre elles plutôt que sur l'une d'elles. */
+  const gapX = useCallback(
+    (index: number): number => {
+      const slots = layout.slots;
+      if (slots.length === 0) return 0;
+      if (index <= 0) return slots[0].x - cardWidth * 0.5;
+      if (index >= slots.length) return slots[slots.length - 1].x + cardWidth * 0.5;
+      return (slots[index - 1].x + slots[index].x) / 2;
+    },
+    [layout.slots, cardWidth],
+  );
+
   const handleDrag = useCallback(
     (_: unknown, info: PanInfo) => {
       if (!onReorder) return;
@@ -256,30 +269,23 @@ export function RamiHandFan({
           </motion.div>
         </>
       )}
-      {dragOverIndex !== null && layout.slots[dragOverIndex] && (
-        // Repère de dépose : la forme d'une carte, pas un simple trait — pour
-        // qu'on comprenne immédiatement « elle ira ici », même en plein geste.
+      {dragOverIndex !== null && (
+        // Repère de dépose : un simple trait dans l'espace entre deux cartes,
+        // pas une carte entière — plus fin, et à l'endroit précis où elle ira.
         <motion.div
           aria-hidden="true"
-          className="pointer-events-none absolute rounded-[7%] border-[3px] border-dashed border-gold-300"
+          className="pointer-events-none absolute rounded-full bg-gold-300"
           style={{
             left: '50%',
-            bottom: bottomInset,
-            width: cardWidth,
-            height: cardHeight,
+            bottom: bottomInset + cardHeight * 0.05,
+            width: 3,
+            height: cardHeight * 0.9,
             zIndex: 998,
-            background: 'rgba(236,208,138,0.22)',
-            boxShadow: '0 0 26px 8px rgba(236,208,138,0.65)',
+            boxShadow: '0 0 6px 1px rgba(236,208,138,0.7)',
           }}
           initial={false}
-          animate={{
-            marginLeft: layout.slots[dragOverIndex].x - cardWidth / 2,
-            scale: [1, 1.06, 1],
-          }}
-          transition={{
-            marginLeft: { type: 'spring', stiffness: 500, damping: 34 },
-            scale: { duration: 0.7, repeat: Infinity, ease: 'easeInOut' },
-          }}
+          animate={{ marginLeft: gapX(dragOverIndex) - 1.5 }}
+          transition={{ type: 'spring', stiffness: 500, damping: 34 }}
         />
       )}
       {autoGroupBoxes.map((box) => {
