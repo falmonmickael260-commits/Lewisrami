@@ -186,64 +186,64 @@ export function RamiHandFan({
               whileDrag={{ scale: 1.14, zIndex: 999, cursor: 'grabbing' }}
               transition={{ type: 'spring', stiffness: 420, damping: 32 }}
             >
-            {/* Couche d'arrivée : la carte vient de la pioche à la distribution.
-                Séparée de la couche de placement pour que le délai de
-                distribution ne retarde jamais la réaction à la sélection. */}
-            <motion.div
-              className="h-full w-full will-animate"
-              initial={
-                reducedMotion
-                  ? { opacity: 0 }
-                  : {
-                      x: dealOrigin.dx - slot.x,
-                      y: dealOrigin.dy,
-                      rotate: -16,
-                      scale: 0.66,
-                      opacity: 0,
-                    }
-              }
-              animate={{ x: 0, y: 0, rotate: 0, scale: 1, opacity: 1 }}
-              transition={
-                reducedMotion
-                  ? { duration: 0.2, delay: index * 0.01 }
-                  : {
-                      type: 'spring',
-                      stiffness: 320,
-                      damping: 26,
-                      mass: 0.8,
-                      delay: index * stagger,
-                    }
-              }
-            >
-              <RamiPlayingCard
-                card={card}
-                width={cardWidth}
-                dimmed={isReserved}
-                elevation={lifted ? 'lift' : 'rest'}
-              />
+              {/* Couche d'arrivée : la carte vient de la pioche à la distribution.
+                  Séparée de la couche de placement pour que le délai de
+                  distribution ne retarde jamais la réaction à la sélection. */}
+              <motion.div
+                className="h-full w-full will-animate"
+                initial={
+                  reducedMotion
+                    ? { opacity: 0 }
+                    : {
+                        x: dealOrigin.dx - slot.x,
+                        y: dealOrigin.dy,
+                        rotate: -16,
+                        scale: 0.66,
+                        opacity: 0,
+                      }
+                }
+                animate={{ x: 0, y: 0, rotate: 0, scale: 1, opacity: 1 }}
+                transition={
+                  reducedMotion
+                    ? { duration: 0.2, delay: index * 0.01 }
+                    : {
+                        type: 'spring',
+                        stiffness: 320,
+                        damping: 26,
+                        mass: 0.8,
+                        delay: index * stagger,
+                      }
+                }
+              >
+                <RamiPlayingCard
+                  card={card}
+                  width={cardWidth}
+                  dimmed={isReserved}
+                  elevation={lifted ? 'lift' : 'rest'}
+                />
 
-              {isSelected && (
-                <span
-                  className="pointer-events-none absolute -inset-[2px] rounded-[8.5%] ring-[2.5px] ring-gold-300"
-                  style={{
-                    boxShadow:
-                      '0 0 0 1px rgba(10,20,14,0.55), 0 0 26px 2px rgba(236,208,138,0.55)',
-                  }}
-                />
-              )}
-              {isReserved && (
-                <span
-                  className="pointer-events-none absolute -inset-[2px] rounded-[8.5%] ring-2 ring-emerald-300/70"
-                  style={{ boxShadow: '0 0 20px -4px rgba(94,231,171,0.6)' }}
-                />
-              )}
-              {isPinned && !isSelected && !isReserved && (
-                <span
-                  className="pointer-events-none absolute -inset-[2px] rounded-[8.5%] ring-2 ring-ruby-400/80"
-                  style={{ boxShadow: '0 0 22px -4px rgba(242,96,106,0.7)' }}
-                />
-              )}
-            </motion.div>
+                {isSelected && (
+                  <span
+                    className="pointer-events-none absolute -inset-[2px] rounded-[8.5%] ring-[2.5px] ring-gold-300"
+                    style={{
+                      boxShadow:
+                        '0 0 0 1px rgba(10,20,14,0.55), 0 0 26px 2px rgba(236,208,138,0.55)',
+                    }}
+                  />
+                )}
+                {isReserved && (
+                  <span
+                    className="pointer-events-none absolute -inset-[2px] rounded-[8.5%] ring-2 ring-emerald-300/70"
+                    style={{ boxShadow: '0 0 20px -4px rgba(94,231,171,0.6)' }}
+                  />
+                )}
+                {isPinned && !isSelected && !isReserved && (
+                  <span
+                    className="pointer-events-none absolute -inset-[2px] rounded-[8.5%] ring-2 ring-ruby-400/80"
+                    style={{ boxShadow: '0 0 22px -4px rgba(242,96,106,0.7)' }}
+                  />
+                )}
+              </motion.div>
             </motion.div>
           </motion.button>
         );

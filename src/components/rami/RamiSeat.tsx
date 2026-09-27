@@ -118,6 +118,8 @@ export function RamiSeat({
 
         <div className="flex items-center gap-2 text-[0.64rem] text-cream/50">
           <span className="tabular-nums">🂠 {player.cardCount}</span>
+          {/* En mode dense on garde un signe franc plutôt qu'un point discret :
+              savoir qui risque les 100 points forfaitaires fait partie du jeu. */}
           <span
             className={player.hasEntered ? 'text-emerald-300/80' : 'text-ruby-400/75'}
             title={
@@ -125,11 +127,13 @@ export function RamiSeat({
                 ? 'A posé : il ne compte que ses cartes restantes'
                 : 'N’a pas encore posé : 100 points forfaitaires s’il perd'
             }
+            aria-label={player.hasEntered ? 'a posé' : 'n’a pas encore posé'}
           >
-            {dense ? (player.hasEntered ? '✓' : '·') : player.hasEntered ? 'a posé' : 'pas ouvert'}
+            {dense ? (player.hasEntered ? '✓' : '✕') : player.hasEntered ? 'a posé' : 'pas ouvert'}
           </span>
-          {!player.connected && (
-            <span className="text-ruby-400/80">{dense ? '⏻' : 'hors ligne'}</span>
+          {/* Hors ligne : en mode dense, l'avatar grisé suffit à le dire. */}
+          {!player.connected && !dense && (
+            <span className="text-ruby-400/80">hors ligne</span>
           )}
         </div>
       </div>
