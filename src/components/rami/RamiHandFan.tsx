@@ -25,6 +25,8 @@ interface RamiHandFanProps {
   /** Largeur disponible, en pixels. */
   width: number;
   compact: boolean;
+  /** Plafond de largeur d'une carte : impose la hauteur totale de l'éventail. */
+  maxCardWidth?: number;
   interactive: boolean;
   /** Décalage entre deux cartes à la distribution, en secondes. */
   dealStagger: number;
@@ -49,6 +51,7 @@ export function RamiHandFan({
   onDrop,
   width,
   compact,
+  maxCardWidth,
   interactive,
   dealStagger,
   dealOrigin,
@@ -59,10 +62,10 @@ export function RamiHandFan({
     () =>
       computeFanLayout(cards.length, width, {
         compact,
-        maxCard: compact ? 88 : 104,
-        minCard: compact ? 46 : 62,
+        maxCard: maxCardWidth ?? (compact ? 88 : 104),
+        minCard: Math.min(compact ? 46 : 62, maxCardWidth ?? 999),
       }),
-    [cards.length, width, compact],
+    [cards.length, width, compact, maxCardWidth],
   );
 
   const { cardWidth, cardHeight, bottomInset, height } = layout;

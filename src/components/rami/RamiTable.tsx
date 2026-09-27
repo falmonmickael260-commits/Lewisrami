@@ -36,22 +36,46 @@ import { buildRamiStatus } from './status';
 
 export type RamiRoom = GameRoomHandle<RamiPlayerView, RamiEvent>;
 
-/** Largeur d'une carte de combinaison, adaptée à la place disponible. */
-function meldCardWidth(width: number): number {
-  if (width === 0) return 52;
-  if (width < 400) return 40;
-  if (width < 640) return 46;
-  if (width < 900) return 54;
-  if (width < 1280) return 60;
+/** En dessous, l'écran est trop bas pour une mise en page confortable. */
+const SHORT_SCREEN = 540;
+
+/**
+ * Largeur d'une carte de combinaison.
+ *
+ * Elle suit la largeur disponible, mais un écran **bas** — un téléphone tenu en
+ * paysage — doit aussi rétrécir, sinon le tapis ne tient plus entre les sièges
+ * et la main.
+ */
+function meldCardWidth(size: { width: number; height: number }): number {
+  if (size.width === 0) return 52;
+  if (size.height < SHORT_SCREEN) return 38;
+  if (size.width < 400) return 40;
+  if (size.width < 640) return 46;
+  if (size.width < 900) return 54;
+  if (size.width < 1280) return 60;
   return 66;
 }
 
-function pileCardWidth(width: number): number {
-  if (width === 0) return 68;
-  if (width < 400) return 58;
-  if (width < 640) return 66;
-  if (width < 900) return 76;
+function pileCardWidth(size: { width: number; height: number }): number {
+  if (size.width === 0) return 68;
+  if (size.height < SHORT_SCREEN) return 50;
+  if (size.width < 400) return 58;
+  if (size.width < 640) return 66;
+  if (size.width < 900) return 76;
   return 88;
+}
+
+/**
+ * Largeur maximale d'une carte en main.
+ *
+ * L'éventail se dimensionne d'abord sur la largeur ; sans ce plafond, une main
+ * de quinze cartes mangerait plus de la moitié d'un écran de 390 px de haut.
+ */
+function handMaxCard(size: { width: number; height: number }, compact: boolean): number {
+  const base = compact ? 88 : 104;
+  if (size.height === 0) return base;
+  const factor = size.height < 460 ? 0.16 : 0.18;
+  return Math.max(44, Math.min(base, Math.round(size.height * factor)));
 }
 
 /**
@@ -95,9 +119,11 @@ export function RamiTable({
     return () => observer.disconnect();
   }, []);
 
-  const compact = size.width > 0 && size.width < 700;
-  const tableCardWidth = useMemo(() => meldCardWidth(size.width), [size.width]);
-  const pileWidth = useMemo(() => pileCardWidth(size.width), [size.width]);
+  const short = size.height > 0 && size.height < SHORT_SCREEN;
+  const compact = size.width > 0 && (size.width < 700 || short);
+  const tableCardWidth = useMemo(() => meldCardWidth(size), [size]);
+  const pileWidth = useMemo(() => pileCardWidth(size), [size]);
+  const handWidth = useMemo(() => handMaxCard(size, compact), [size, compact]);
 
   const isMyTurn = Boolean(view && view.currentPlayerId === view.youId);
   const turn = useRamiTurn(view, isMyTurn);
@@ -289,22 +315,26 @@ export function RamiTable({
 
       <div className="flex min-h-0 flex-1 flex-col" style={{ paddingTop: 'var(--table-top-bar)' }}>
         {/* ------------------------------------------------- Adversaires */}
-        <div className="flex shrink-0 flex-wrap items-start justify-center gap-1.5 px-2 pb-1">
-          {opponents.map((player) => (
-            <RamiSeat
-              key={player.id}
-              player={player}
-              mode={view.settings.mode}
-              isCurrent={view.currentPlayerId === player.id}
-              isDealer={view.dealerId === player.id}
-              isPartner={Boolean(me && me.teamId === player.teamId)}
-              deadline={view.currentPlayerId === player.id ? view.turnDeadline : null}
-              totalMs={view.turnTotalMs ?? view.settings.turnSeconds * 1000}
-              clockSkew={room.clockSkew}
-              compact={compact}
-            />
-          ))}
-        </div>
+        {/* Sur un écran bas — un téléphone en paysage — les sièges passent en
+            colonne à droite : la hauteur est la ressource rare, la largeur non. */}
+        {!short && (
+          <div className="flex shrink-0 flex-wrap items-start justify-center gap-1.5 px-2 pb-1">
+            {opponents.map((player) => (
+              <RamiSeat
+                key={player.id}
+                player={player}
+                mode={view.settings.mode}
+                isCurrent={view.currentPlayerId === player.id}
+                isDealer={view.dealerId === player.id}
+                isPartner={Boolean(me && me.teamId === player.teamId)}
+                deadline={view.currentPlayerId === player.id ? view.turnDeadline : null}
+                totalMs={view.turnTotalMs ?? view.settings.turnSeconds * 1000}
+                clockSkew={room.clockSkew}
+                compact={compact}
+              />
+            ))}
+          </div>
+        )}
 
         {/* -------------------------------------- Pioche, défausse, tapis */}
         {/* L'aire de jeu est centrée verticalement : une table vide ne doit pas
@@ -315,7 +345,9 @@ export function RamiTable({
               qu'une table encore vide ressemble à une table et non à du vide. */}
           <div
             aria-hidden="true"
-            className="pointer-events-none absolute -inset-x-3 -inset-y-4 rounded-[2rem] border border-gold-500/10 sm:-inset-x-5 sm:-inset-y-6"
+            className={`pointer-events-none absolute rounded-[2rem] border border-gold-500/10 ${
+              short ? '-inset-x-2 -inset-y-1' : '-inset-x-3 -inset-y-4 sm:-inset-x-5 sm:-inset-y-6'
+            }`}
             style={{
               background:
                 'radial-gradient(75% 95% at 50% 45%, rgb(255 255 255 / 0.05), transparent 72%)',
@@ -359,6 +391,26 @@ export function RamiTable({
               emptyHint={emptyHint}
             />
           </div>
+
+          {short && (
+            <div className="relative flex max-h-full shrink-0 flex-col gap-1 overflow-y-auto">
+              {opponents.map((player) => (
+                <RamiSeat
+                  key={player.id}
+                  player={player}
+                  mode={view.settings.mode}
+                  isCurrent={view.currentPlayerId === player.id}
+                  isDealer={view.dealerId === player.id}
+                  isPartner={Boolean(me && me.teamId === player.teamId)}
+                  deadline={view.currentPlayerId === player.id ? view.turnDeadline : null}
+                  totalMs={view.turnTotalMs ?? view.settings.turnSeconds * 1000}
+                  clockSkew={room.clockSkew}
+                  compact
+                  dense
+                />
+              ))}
+            </div>
+          )}
           </div>
         </div>
 
@@ -382,6 +434,7 @@ export function RamiTable({
 
             <RamiActionBar
               status={status}
+              dense={short}
               selectionHint={turn.selectionHint}
               busy={busy}
               canDrawStock={canDrawStock}
@@ -414,6 +467,7 @@ export function RamiTable({
               onDrop={onDropCard}
               width={size.width}
               compact={compact}
+              maxCardWidth={handWidth}
               interactive={isMyTurn && !locked && !busy}
               dealStagger={0.035}
               dealOrigin={director.handOrigin}

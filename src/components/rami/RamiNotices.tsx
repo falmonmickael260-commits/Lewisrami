@@ -17,7 +17,7 @@ export function RamiNotices({ notices }: { notices: Notice[] }) {
       // Sous la barre du haut **et** sous la rangée des sièges : une annonce
       // ne doit jamais masquer le joueur dont c'est le tour.
       style={{
-        top: 'calc(max(env(safe-area-inset-top), 0.5rem) + var(--table-top-bar, 3.6rem) + 3.6rem)',
+        top: 'calc(max(env(safe-area-inset-top), 0.5rem) + var(--table-top-bar, 3.6rem) + var(--table-notice-gap, 3.6rem))',
       }}
       role="log"
       aria-live="polite"

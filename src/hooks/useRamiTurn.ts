@@ -57,6 +57,12 @@ export interface RamiTurnState {
 
 let groupCounter = 0;
 
+/** Nom d'une combinaison préparée, affiché sur le plan de travail. */
+function labelFor(kind: 'run' | 'set', size: number): string {
+  if (kind === 'run') return 'Tierce';
+  return size >= 4 ? 'Carré' : 'Brelan';
+}
+
 /**
  * État d'un tour de Rami côté joueur.
  *
@@ -166,29 +172,24 @@ export function useRamiTurn(view: RamiPlayerView | null, isMyTurn: boolean): Ram
   const addGroup = useCallback(() => {
     if (!preview || !preview.ok || keepOne) return;
     const cards = selectedCards.slice();
+
+    // On fige ce que le joker représente : sans cette précision, le serveur
+    // pourrait le placer à l'autre extrémité de la tierce.
+    const jokerRole = preview.slots.find((slot) => slot.card.joker)?.jokerRole ?? null;
+
     const group: StagedGroup = {
       id: `g${++groupCounter}`,
       proposal: {
         kind: preview.kind,
-        // L'ordre de la sélection fixe la place d'un joker en bout de tierce.
         cardIds: cards.map((card) => card.id),
-        ...(preview.slots.find((slot) => slot.card.joker)?.jokerRole
-          ? {
-              jokerRank: preview.slots.find((slot) => slot.card.joker)!.jokerRole!.rank,
-              jokerSuit:
-                preview.slots.find((slot) => slot.card.joker)!.jokerRole!.suit ?? undefined,
-            }
+        ...(jokerRole
+          ? { jokerRank: jokerRole.rank, jokerSuit: jokerRole.suit ?? undefined }
           : {}),
       },
       cards,
       points: preview.points,
       qualifiesRun: qualifiesAsOpeningRun({ kind: preview.kind, slots: preview.slots } as Meld),
-      label:
-        preview.kind === 'run'
-          ? 'Tierce'
-          : preview.slots.length >= 4
-            ? 'Carré'
-            : 'Brelan',
+      label: labelFor(preview.kind, preview.slots.length),
     };
     setGroups((current) => [...current, group]);
     setSelected([]);
@@ -311,8 +312,7 @@ export function useRamiTurn(view: RamiPlayerView | null, isMyTurn: boolean): Ram
         cards,
         points: built.points,
         qualifiesRun: qualifiesAsOpeningRun({ kind: built.kind, slots: built.slots } as Meld),
-        label:
-          built.kind === 'run' ? 'Tierce' : built.slots.length >= 4 ? 'Carré' : 'Brelan',
+        label: labelFor(built.kind, built.slots.length),
       });
     }
     setGroups(staged);

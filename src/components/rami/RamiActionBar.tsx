@@ -8,6 +8,8 @@ import type { StatusLine } from './status';
 
 export interface RamiActionBarProps {
   status: StatusLine;
+  /** Écran bas : on se passe de la ligne d'explication. */
+  dense?: boolean;
   /** Aide contextuelle sur la sélection en cours. */
   selectionHint: { valid: boolean; text: string | null };
   busy: boolean;
@@ -53,6 +55,7 @@ const TONES = {
  */
 export function RamiActionBar({
   status,
+  dense = false,
   selectionHint,
   busy,
   canDrawStock,
@@ -91,7 +94,7 @@ export function RamiActionBar({
           {status.title}
         </motion.p>
         <AnimatePresence mode="wait" initial={false}>
-          {(hint ?? status.detail) && (
+          {(hint ?? (dense ? null : status.detail)) && (
             <motion.p
               key={hint ?? status.detail ?? ''}
               initial={{ opacity: 0, y: 3 }}

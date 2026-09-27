@@ -157,11 +157,21 @@
      réfèrent par cette variable plutôt que par une constante dupliquée. */
   .rami-table {
     --table-top-bar: 5.3rem;
+    --table-notice-gap: 3.6rem;
   }
 
   @media (min-width: 640px) {
     .rami-table {
       --table-top-bar: 3.6rem;
+    }
+  }
+
+  /* Téléphone en paysage : il n'y a plus de place pour une annonce sous les
+     sièges. Elle se pose juste sous la barre du haut, où elle ne masque que
+     des informations qu'on relira une seconde plus tard. */
+  @media (max-height: 540px) {
+    .rami-table {
+      --table-notice-gap: 0.35rem;
     }
   }
 

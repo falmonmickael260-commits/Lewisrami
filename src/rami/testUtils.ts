@@ -15,7 +15,6 @@ import type {
   GameMode,
   Meld,
   MeldKind,
-  RamiCard,
   RamiPlayer,
   RamiState,
   Suit,

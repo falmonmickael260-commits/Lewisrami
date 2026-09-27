@@ -15,7 +15,6 @@
 import { SUITS, pointsInSet, rankAtRunValue, runValuesOf } from './cards';
 import {
   buildRun,
-  buildSet,
   extendMeldWith,
   jokerRequirement,
   reclaimJokerWith,

@@ -77,7 +77,9 @@ export function GameHub() {
 
   return (
     <main className="felt-surface felt-grain min-h-dvh w-full">
-      <div className="pt-safe pb-safe mx-auto flex min-h-dvh max-w-3xl flex-col justify-center gap-7 px-5 py-10">
+      {/* Sur un très grand écran, la mise en page respire au lieu de se
+          recroqueviller au centre : tout grandit avec la fenêtre. */}
+      <div className="pt-safe pb-safe mx-auto flex min-h-dvh max-w-3xl flex-col justify-center gap-7 px-5 py-10 2xl:max-w-5xl 2xl:gap-10">
         <header className="text-center">
           <motion.p
             initial={{ opacity: 0, y: -8 }}
@@ -90,7 +92,7 @@ export function GameHub() {
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ type: 'spring', stiffness: 260, damping: 24 }}
-            className="text-gradient-gold font-display text-5xl leading-tight sm:text-6xl"
+            className="text-gradient-gold font-display text-5xl leading-tight sm:text-6xl 2xl:text-8xl"
           >
             Jeux de cartes en ligne
           </motion.h1>
@@ -98,7 +100,7 @@ export function GameHub() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 0.18 }}
-            className="mx-auto mt-2 max-w-md text-[0.9rem] leading-relaxed text-cream/55"
+            className="mx-auto mt-2 max-w-md text-[0.9rem] leading-relaxed text-cream/55 2xl:max-w-xl 2xl:text-[1.05rem]"
           >
             Créez une table, partagez un code de quatre lettres, et jouez en temps réel depuis
             n’importe quel écran.
@@ -123,12 +125,12 @@ export function GameHub() {
                   whileHover={{ y: -6 }}
                   whileTap={{ scale: 0.99 }}
                   transition={{ type: 'spring', stiffness: 380, damping: 28 }}
-                  className="panel flex h-full flex-col gap-4 rounded-3xl p-5 transition-colors"
+                  className="panel flex h-full flex-col gap-4 rounded-3xl p-5 transition-colors 2xl:gap-6 2xl:p-8"
                   style={{ borderColor: game.accent }}
                 >
-                  <div className="flex h-24 items-center justify-center overflow-hidden">
+                  <div className="flex h-24 items-center justify-center overflow-hidden 2xl:h-40">
                     <motion.div
-                      className="will-animate"
+                      className="will-animate 2xl:scale-150"
                       whileHover={{ rotate: -3, scale: 1.05 }}
                       transition={{ type: 'spring', stiffness: 300, damping: 24 }}
                     >
@@ -140,8 +142,10 @@ export function GameHub() {
                     <p className="text-[0.6rem] font-bold uppercase tracking-[0.22em] text-gold-500/70">
                       {game.eyebrow}
                     </p>
-                    <h2 className="text-gradient-gold font-display text-3xl">{game.title}</h2>
-                    <p className="mt-1.5 text-[0.82rem] leading-relaxed text-cream/55">
+                    <h2 className="text-gradient-gold font-display text-3xl 2xl:text-5xl">
+                      {game.title}
+                    </h2>
+                    <p className="mt-1.5 text-[0.82rem] leading-relaxed text-cream/55 2xl:text-base">
                       {game.pitch}
                     </p>
                   </div>

@@ -18,6 +18,8 @@ interface RamiSeatProps {
   totalMs: number;
   clockSkew: number;
   compact?: boolean;
+  /** Écran bas : tout tient sur une seule ligne. */
+  dense?: boolean;
 }
 
 /**
@@ -37,10 +39,11 @@ export function RamiSeat({
   totalMs,
   clockSkew,
   compact = false,
+  dense = false,
 }: RamiSeatProps) {
   const { bind } = useAnchors();
   const style = teamStyle(player.teamId);
-  const size = compact ? 40 : 48;
+  const size = dense ? 30 : compact ? 40 : 48;
 
   return (
     <motion.div
@@ -50,7 +53,8 @@ export function RamiSeat({
       animate={{ opacity: 1, y: 0 }}
       transition={{ type: 'spring', stiffness: 340, damping: 30 }}
       className={[
-        'relative flex items-center gap-2 rounded-2xl border px-2.5 py-1.5 backdrop-blur-md transition-colors',
+        'relative flex items-center gap-2 rounded-2xl border backdrop-blur-md transition-colors',
+        dense ? 'px-2 py-1' : 'px-2.5 py-1.5',
         isCurrent ? 'bg-white/[0.09]' : 'bg-ink-950/45',
       ].join(' ')}
       style={{
@@ -82,7 +86,7 @@ export function RamiSeat({
         )}
       </div>
 
-      <div className="min-w-0">
+      <div className={`min-w-0 ${dense ? 'flex items-center gap-2' : ''}`}>
         <div className="flex items-center gap-1.5">
           <span
             className={`truncate text-[0.8rem] font-semibold ${
@@ -100,17 +104,20 @@ export function RamiSeat({
               D
             </span>
           )}
-          {mode === '2v2' && isPartner && (
+          {mode === '2v2' && isPartner && !dense && (
             <span className="shrink-0 rounded-full bg-white/10 px-1.5 text-[0.55rem] font-bold uppercase tracking-wider text-cream/60">
               partenaire
+            </span>
+          )}
+          {mode === '2v2' && isPartner && dense && (
+            <span className="shrink-0 text-[0.6rem] text-cream/50" title="Votre partenaire">
+              ⚭
             </span>
           )}
         </div>
 
         <div className="flex items-center gap-2 text-[0.64rem] text-cream/50">
-          <span className="tabular-nums">
-            🂠 {player.cardCount}
-          </span>
+          <span className="tabular-nums">🂠 {player.cardCount}</span>
           <span
             className={player.hasEntered ? 'text-emerald-300/80' : 'text-ruby-400/75'}
             title={
@@ -119,9 +126,11 @@ export function RamiSeat({
                 : 'N’a pas encore posé : 100 points forfaitaires s’il perd'
             }
           >
-            {player.hasEntered ? 'a posé' : 'pas ouvert'}
+            {dense ? (player.hasEntered ? '✓' : '·') : player.hasEntered ? 'a posé' : 'pas ouvert'}
           </span>
-          {!player.connected && <span className="text-ruby-400/80">hors ligne</span>}
+          {!player.connected && (
+            <span className="text-ruby-400/80">{dense ? '⏻' : 'hors ligne'}</span>
+          )}
         </div>
       </div>
     </motion.div>

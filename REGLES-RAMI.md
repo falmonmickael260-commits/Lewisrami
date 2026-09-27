@@ -214,5 +214,7 @@ ci-dessous sont isolés dans le code et faciles à modifier.
 | Ouverture en 1 vs 1 et 1 vs 1 vs 1 | Chaque joueur est sa propre équipe : les règles d'ouverture d'équipe s'appliquent telles quelles. | `teamOfSeat`, `scoring.ts` |
 | Le donneur peut-il poser avant de jeter ? | Oui. « Il ne pioche pas » porte sur la pioche, pas sur les poses. | `startRound`, `engine.ts` |
 | Combinaisons adverses en 1 vs 1 vs 1 | Accessibles quand **toutes** les équipes ont ouvert. | `canTouch`, `moves.ts` |
+| Portée de la « tierce obligatoire » | C'est une condition d'**entrée** : elle s'applique à la première pose d'un joueur, pas à ses poses suivantes. Ce que la règle 28 ouvre une fois toutes les équipes entrées, c'est l'accès aux combinaisons **adverses**. | `openingRequirementFor`, `scoring.ts` |
+| Joker posé en bout de tierce | Le moteur le place à l'extrémité **haute** quand les deux sont possibles ; le client peut imposer l'autre en précisant la carte représentée. | `placeRun`, `melds.ts` |
 | Pioche vide **et** défausse non recyclable | La manche s'arrête sans gagnant : chacun compte ses cartes, personne ne marque 0. Cas de figure pratiquement impossible avec 108 cartes. | `doDiscard`, `engine.ts` |
 | Reprise d'une carte finalement inutilisable | Le joueur peut la **remettre** sur la défausse tant qu'elle n'a pas servi, puis piocher. Rien n'est révélé : la carte était déjà publique. | `cancel_take`, `engine.ts` |

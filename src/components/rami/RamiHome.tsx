@@ -112,7 +112,7 @@ export function RamiHome() {
         ))}
       </div>
 
-      <div className="pt-safe pb-safe relative mx-auto flex min-h-dvh max-w-lg flex-col justify-center gap-5 px-5 py-10">
+      <div className="pt-safe pb-safe relative mx-auto flex min-h-dvh max-w-lg flex-col justify-center gap-5 px-5 py-10 2xl:max-w-xl 2xl:gap-7">
         <header className="text-center">
           <motion.p
             initial={{ opacity: 0, y: -8 }}
@@ -125,7 +125,7 @@ export function RamiHome() {
             initial={{ opacity: 0, scale: 0.94 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ type: 'spring', stiffness: 260, damping: 24 }}
-            className="text-gradient-gold font-display text-6xl leading-none sm:text-7xl"
+            className="text-gradient-gold font-display text-6xl leading-none sm:text-7xl 2xl:text-8xl"
           >
             Rami
           </motion.h1>
