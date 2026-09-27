@@ -325,14 +325,16 @@ export function RamiHandFan({
         const isPinned = pinnedId === card.id;
         const autoColorIndex = autoGroupColorByCard.get(card.id);
 
-        // Les cartes voisines s'écartent nettement de la carte soulevée : elle
-        // grossit et passe devant tout le monde, un petit décalage ne suffit
-        // pas à éviter qu'elle ne cache ses voisines.
+        // Tout un côté de la main s'écarte d'un même bloc, pas seulement les
+        // deux voisines immédiates : sinon, pousser la carte juste après la
+        // sélection la fait recouvrir celle d'après (7 s'écarte de 6 mais
+        // cache alors 8), et il faut deviner où chaque carte a atterri. En
+        // décalant tout le monde du même côté d'un même cran, l'ordre et
+        // l'espacement entre elles ne changent jamais, seule la sélectionnée
+        // s'en détache.
         const neighbourPush = selectedIndexes.reduce((sum, selectedIndex) => {
           if (selectedIndex === index) return sum;
-          const distance = index - selectedIndex;
-          if (Math.abs(distance) > 2) return sum;
-          return sum + (Math.sign(distance) * (cardWidth * 0.55)) / Math.abs(distance);
+          return sum + Math.sign(index - selectedIndex) * cardWidth * 0.5;
         }, 0);
 
         const lifted = isSelected || isReserved;
