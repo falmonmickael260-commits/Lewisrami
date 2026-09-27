@@ -225,15 +225,15 @@ export function RamiHandFan({
         <>
           <motion.div
             aria-hidden="true"
-            className="pointer-events-none absolute rounded-[28%]"
+            className="pointer-events-none absolute rounded-[14%]"
             style={{
               left: '50%',
-              bottom: bottomInset - cardHeight * 0.14,
-              height: cardHeight * 1.32,
+              bottom: bottomInset - cardHeight * 0.03,
+              height: cardHeight * 1.06,
               zIndex: 0,
               background:
-                'linear-gradient(180deg, rgba(94,231,171,0.4), rgba(94,231,171,0.1))',
-              boxShadow: '0 0 44px 10px rgba(94,231,171,0.5)',
+                'linear-gradient(180deg, rgba(94,231,171,0.3), rgba(94,231,171,0.08))',
+              boxShadow: '0 0 14px 2px rgba(94,231,171,0.4)',
             }}
             initial={false}
             animate={{
@@ -290,16 +290,16 @@ export function RamiHandFan({
           <div key={box.id}>
             <div
               aria-hidden="true"
-              className="pointer-events-none absolute rounded-[28%]"
+              className="pointer-events-none absolute rounded-[14%]"
               style={{
                 left: '50%',
                 marginLeft: box.left,
                 width: box.width,
-                bottom: bottomInset - cardHeight * 0.14,
-                height: cardHeight * 1.32,
+                bottom: bottomInset - cardHeight * 0.03,
+                height: cardHeight * 1.06,
                 zIndex: 0,
-                background: `linear-gradient(180deg, rgba(${palette.rgb},0.3), rgba(${palette.rgb},0.08))`,
-                boxShadow: `0 0 34px 8px rgba(${palette.rgb},0.35)`,
+                background: `linear-gradient(180deg, rgba(${palette.rgb},0.22), rgba(${palette.rgb},0.06))`,
+                boxShadow: `0 0 10px 1px rgba(${palette.rgb},0.3)`,
               }}
             />
             <button
