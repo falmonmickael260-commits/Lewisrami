@@ -465,6 +465,24 @@ export function useRamiDirector({
     return () => clearTimeout(timer);
   }, [pendingCardIds]);
 
+  // Garantie immédiate, sans attendre le filet de sécurité : une carte que le
+  // serveur confirme posée dans une combinaison n'est plus « en vol » — elle
+  // ne doit jamais rester masquée pour le joueur qui vient de la poser, quel
+  // que soit l'ordre d'arrivée entre la réponse HTTP de l'action et le flux SSE.
+  useEffect(() => {
+    if (!view || pendingCardIds.size === 0) return;
+    const laidIds = new Set<CardId>();
+    for (const meld of view.melds) {
+      for (const slot of meld.slots) laidIds.add(slot.card.id);
+    }
+    if (![...pendingCardIds].some((id) => laidIds.has(id))) return;
+    setPendingCardIds((current) => {
+      const next = new Set(current);
+      for (const id of laidIds) next.delete(id);
+      return next;
+    });
+  }, [view, pendingCardIds]);
+
   // Une carte reprise dans la défausse mérite un rappel explicite.
   const lastWarned = useRef<string | null>(null);
   useEffect(() => {
