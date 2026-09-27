@@ -150,8 +150,50 @@ export function useGameRoom<V extends { serverNow: number }, E>(
     };
   }, [connect]);
 
+  /**
+   * Filet de sécurité : une requête HTTP réelle toutes les quelques minutes,
+   * tant qu'une session est active.
+   *
+   * Sur un hébergeur gratuit, le service s'endort après une période sans
+   * requête entrante — un flux SSE déjà ouvert n'en compte pas toujours comme
+   * une. Sans ce battement, une partie qui dure suffit à faire dormir le
+   * serveur, qui perd la salle en mémoire ; la prochaine action du joueur
+   * tombe alors sur « cette salle n'existe pas ». Cette requête maintient le
+   * serveur éveillé et resynchronise la vue si le flux temps réel s'est figé
+   * silencieusement (onglet en arrière-plan, proxy qui coupe le SSE).
+   */
+  useEffect(() => {
+    if (!session) return;
+    let cancelled = false;
+    const ping = async () => {
+      try {
+        const response = await fetch(
+          `${apiBase}/${code}/state?token=${encodeURIComponent(session.token)}`,
+          { cache: 'no-store' },
+        );
+        if (cancelled) return;
+        if (response.status === 404) {
+          setStatus('gone');
+          setError("Cette salle n'existe plus.");
+          return;
+        }
+        if (response.ok) {
+          const body = (await response.json()) as { view: V };
+          setView(body.view);
+        }
+      } catch {
+        /* le flux SSE reste la source principale ; un raté ici n'est pas fatal */
+      }
+    };
+    const interval = setInterval(ping, 4 * 60 * 1000);
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
+  }, [session, code, apiBase]);
+
   const send = useCallback(
-    async (action: string, payload: Record<string, unknown> = {}) => {
+    async (action: string, payload: Record<string, unknown> = {}, attempt = 0): Promise<boolean> => {
       const stored = loadSession(code, namespace);
       if (!stored) {
         setError('Session expirée. Rejoignez la salle à nouveau.');
@@ -164,6 +206,13 @@ export function useGameRoom<V extends { serverNow: number }, E>(
           body: JSON.stringify({ ...payload, action, token: stored.token }),
         });
         if (!response.ok) {
+          // Un 404 juste après une reconnexion (flux SSE qui vient de repartir,
+          // instance qui recharge la salle depuis la persistance) est parfois un
+          // faux négatif : on retente une fois avant d'annoncer la salle perdue.
+          if (response.status === 404 && attempt === 0) {
+            await new Promise((resolve) => setTimeout(resolve, 400));
+            return send(action, payload, 1);
+          }
           const body = (await response.json().catch(() => ({}))) as { error?: string };
           setError(body.error ?? 'Action refusée.');
           if (response.status === 401) clearSession(code, namespace);

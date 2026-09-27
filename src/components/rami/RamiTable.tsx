@@ -21,6 +21,7 @@ import { useHandOrder } from '@/hooks/useHandOrder';
 import type { GameRoomHandle } from '@/hooks/useGameRoom';
 import { Button } from '@/components/ui/Button';
 import { Sheet } from '@/components/ui/Sheet';
+import { haptic } from '@/lib/haptics';
 import { sound } from '@/lib/sound';
 import { MeldsBoard } from './MeldsBoard';
 import { Piles } from './Piles';
@@ -76,11 +77,11 @@ function pileCardWidth(size: { width: number; height: number }): number {
  * de quinze cartes mangerait plus de la moitié d'un écran de 390 px de haut.
  */
 function handMaxCard(size: { width: number; height: number }, compact: boolean): number {
-  const base = compact ? 118 : 136;
+  const base = compact ? 126 : 136;
   if (size.height === 0) return base;
   // Sur un écran bas, la main doit laisser vivre le tapis : on plafonne plus tôt.
-  const factor = size.height < 460 ? 0.17 : 0.23;
-  return Math.max(46, Math.min(base, Math.round(size.height * factor)));
+  const factor = size.height < 460 ? 0.19 : 0.25;
+  return Math.max(50, Math.min(base, Math.round(size.height * factor)));
 }
 
 /**
@@ -198,6 +199,35 @@ export function RamiTable({
       if (ok) turn.clearSelection();
     });
   }, [turn, director, guarded]);
+
+  // Rami : toute la main tient en combinaisons valides. On pose les groupes
+  // ensemble puis on jette automatiquement l'unique carte restante — les deux
+  // actions existantes (`lay_melds`, `discard`), enchaînées, rien d'autre.
+  const onRami = useCallback(() => {
+    const suggestion = turn.suggestion;
+    if (!suggestion || !suggestion.emptiesHand) return;
+    const leftover = suggestion.leftoverCardId;
+    const ids = suggestion.melds.flatMap((meld) => meld.cardIds);
+    director.captureCards(ids);
+    void guarded('lay_melds', { melds: suggestion.melds }).then((ok) => {
+      if (!ok || !leftover) return;
+      director.captureCards([leftover]);
+      void guarded('discard', { cardId: leftover });
+    });
+  }, [turn.suggestion, director, guarded]);
+
+  const ramiAnnounced = useRef(false);
+  useEffect(() => {
+    const isRami = Boolean(turn.suggestion?.emptiesHand);
+    if (isRami && !ramiAnnounced.current) {
+      ramiAnnounced.current = true;
+      director.pushNotice('🏆 RAMI ! Toute votre main peut être posée', 'good');
+      haptic('success');
+      sound().play('carre');
+    } else if (!isRami) {
+      ramiAnnounced.current = false;
+    }
+  }, [turn.suggestion, director]);
 
   const onMeldActivate = useCallback(
     (meld: Meld) => {
@@ -533,7 +563,7 @@ export function RamiTable({
               layHint={turn.layHint}
               onLay={onLay}
               suggestion={turn.suggestion}
-              onSuggest={turn.applySuggestion}
+              onSuggest={turn.suggestion?.emptiesHand ? onRami : turn.applySuggestion}
               canDiscard={turn.canDiscard}
               onDiscard={onDiscard}
               hasSelection={turn.selected.length > 0}

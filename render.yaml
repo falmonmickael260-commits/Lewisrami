@@ -6,7 +6,7 @@
 # répartiraient les joueurs d'une même salle sur des processus différents.
 services:
   - type: web
-    name: jeux-de-cartes
+    name: lewisrami
     runtime: docker
     dockerfilePath: ./Dockerfile
     # Plan gratuit : le service s'endort après 15 min sans trafic et perd les

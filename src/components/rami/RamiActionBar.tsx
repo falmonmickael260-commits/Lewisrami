@@ -31,7 +31,7 @@ export interface RamiActionBarProps {
   layHint: string | null;
   onLay: () => void;
 
-  suggestion: { points: number } | null;
+  suggestion: { points: number; emptiesHand: boolean } | null;
   onSuggest: () => void;
 
   canDiscard: boolean;
@@ -142,8 +142,15 @@ export function RamiActionBar({
         )}
 
         {suggestion && (
-          <Button variant="ghost" size="md" onClick={onSuggest} disabled={busy}>
-            💡 Proposition · {suggestion.points} pts
+          <Button
+            variant={suggestion.emptiesHand ? 'primary' : 'ghost'}
+            size="md"
+            onClick={onSuggest}
+            disabled={busy}
+          >
+            {suggestion.emptiesHand
+              ? `🏆 RAMI ! Tout poser · ${suggestion.points} pts`
+              : `💡 Proposition · ${suggestion.points} pts`}
           </Button>
         )}
 

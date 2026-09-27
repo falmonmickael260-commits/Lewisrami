@@ -71,9 +71,9 @@ export function RamiHandFan({
     () =>
       computeFanLayout(cards.length, width, {
         compact,
-        maxCard: maxCardWidth ?? (compact ? 104 : 136),
+        maxCard: maxCardWidth ?? (compact ? 110 : 136),
         // Plancher de lisibilité : en dessous, une carte ne se lit plus au doigt.
-        minCard: Math.min(compact ? 72 : 78, maxCardWidth ?? 999),
+        minCard: Math.min(compact ? 76 : 82, maxCardWidth ?? 999),
       }),
     [cards.length, width, compact, maxCardWidth],
   );
@@ -87,6 +87,17 @@ export function RamiHandFan({
         .filter((index) => index >= 0),
     [cards, selected],
   );
+
+  // Fond commun sous une sélection valide : les cartes d'une combinaison ne
+  // doivent pas juste partager une couleur de contour chacune de leur côté,
+  // elles doivent visuellement appartenir au même bloc.
+  const groupHighlight = useMemo(() => {
+    if (!selectionValid || selectedIndexes.length < 2) return null;
+    const xs = selectedIndexes.map((index) => layout.slots[index]?.x ?? 0);
+    const left = Math.min(...xs) - cardWidth / 2;
+    const right = Math.max(...xs) + cardWidth / 2;
+    return { left, width: right - left };
+  }, [selectionValid, selectedIndexes, layout.slots, cardWidth]);
 
   const stagger = reducedMotion ? 0 : dealStagger;
 
@@ -139,6 +150,28 @@ export function RamiHandFan({
       role="group"
       aria-label="Votre main"
     >
+      {groupHighlight && (
+        <motion.div
+          aria-hidden="true"
+          className="pointer-events-none absolute rounded-[28%]"
+          style={{
+            left: '50%',
+            bottom: bottomInset - cardHeight * 0.12,
+            height: cardHeight * 1.2,
+            zIndex: 0,
+            background:
+              'linear-gradient(180deg, rgba(94,231,171,0.24), rgba(94,231,171,0.06))',
+            boxShadow: '0 0 34px 6px rgba(94,231,171,0.35)',
+          }}
+          initial={false}
+          animate={{
+            marginLeft: groupHighlight.left,
+            width: groupHighlight.width,
+            opacity: 1,
+          }}
+          transition={{ type: 'spring', stiffness: 380, damping: 32 }}
+        />
+      )}
       {cards.map((card, index) => {
         const slot = layout.slots[index];
         if (!slot) return null;

@@ -49,7 +49,12 @@ export interface RamiTurnState {
   reclaimFor: (meldId: string) => CardId[] | null;
 
   /** Meilleure pose trouvée par le solveur, proposée au joueur. */
-  suggestion: { melds: MeldProposal[]; points: number } | null;
+  suggestion: {
+    melds: MeldProposal[];
+    points: number;
+    emptiesHand: boolean;
+    leftoverCardId: CardId | null;
+  } | null;
   applySuggestion: () => void;
 
   canDiscard: boolean;
@@ -294,7 +299,15 @@ export function useRamiTurn(view: RamiPlayerView | null, isMyTurn: boolean): Ram
         : undefined,
     });
     if (!lay) return null;
-    return { melds: lay.melds, points: lay.points };
+    // Une manche ne se termine jamais sans défausse : « toute la main » veut
+    // dire toutes les cartes sauf celle qui restera à jeter.
+    const usedIds = new Set(lay.melds.flatMap((meld) => meld.cardIds));
+    const emptiesHand = hand.length > 0 && usedIds.size >= hand.length - 1;
+    // La seule carte qui resterait en main : celle à jeter pour finir la manche.
+    const leftoverCardId = emptiesHand
+      ? (hand.find((card) => !usedIds.has(card.id))?.id ?? null)
+      : null;
+    return { melds: lay.melds, points: lay.points, emptiesHand, leftoverCardId };
   }, [view, isMyTurn, hand, groups.length]);
 
   const applySuggestion = useCallback(() => {

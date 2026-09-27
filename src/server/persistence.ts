@@ -98,19 +98,31 @@ export function createPersistence<S>(table: string): Persistence<S> {
     },
 
     async load(code) {
-      try {
-        const response = await fetch(
-          `${url}/rest/v1/${table}?code=eq.${encodeURIComponent(code)}&select=code,state,tokens&limit=1`,
-          { headers: headers(), cache: 'no-store' },
-        );
-        if (!response.ok) return null;
-        const rows = (await response.json()) as RoomRow<S>[];
-        const row = rows[0];
-        if (!row) return null;
-        return { state: row.state, tokens: row.tokens ?? {} };
-      } catch {
-        return null;
+      // Un raté réseau ici mime une salle disparue pour de bon : après un
+      // redémarrage du serveur, c'est justement le moment où l'on a le plus
+      // besoin que cette lecture réussisse. Une seconde tentative absorbe un
+      // aléa isolé sans changer le comportement quand Supabase est réellement
+      // injoignable.
+      for (let attempt = 0; attempt < 2; attempt++) {
+        try {
+          const response = await fetch(
+            `${url}/rest/v1/${table}?code=eq.${encodeURIComponent(code)}&select=code,state,tokens&limit=1`,
+            { headers: headers(), cache: 'no-store' },
+          );
+          if (!response.ok) {
+            if (attempt === 0) continue;
+            return null;
+          }
+          const rows = (await response.json()) as RoomRow<S>[];
+          const row = rows[0];
+          if (!row) return null;
+          return { state: row.state, tokens: row.tokens ?? {} };
+        } catch {
+          if (attempt === 0) continue;
+          return null;
+        }
       }
+      return null;
     },
 
     async remove(code) {

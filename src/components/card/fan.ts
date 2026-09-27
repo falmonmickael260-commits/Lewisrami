@@ -63,7 +63,10 @@ export function computeFanLayout(
 
   if (cardWidth < minCard) cardWidth = minCard;
   if (count > 1) {
-    overlap = clamp((usable / cardWidth - sweep - 1) / (count - 1), 0.1, 0.5);
+    // Plancher relevé : à 0.1 une carte ne laissait qu'un liseré de ~10 % de sa
+    // largeur, insuffisant pour lire son index — même avec beaucoup de cartes,
+    // une carte ne doit jamais devenir quasi invisible sous sa voisine.
+    overlap = clamp((usable / cardWidth - sweep - 1) / (count - 1), 0.22, 0.5);
   }
 
   const step = cardWidth * overlap;
