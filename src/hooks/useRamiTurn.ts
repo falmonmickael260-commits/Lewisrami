@@ -124,7 +124,11 @@ export function useRamiTurn(view: RamiPlayerView | null, isMyTurn: boolean): Ram
     return lay.melds.map((proposal, index) => ({
       id: `auto-${index}`,
       cardIds: proposal.cardIds,
-      label: labelFor(proposal.kind, proposal.cardIds.length),
+      // Un joker qui complète la combinaison le dit clairement : sans cette
+      // précision, les cartes du groupe peuvent sembler n'avoir aucun rapport.
+      label:
+        labelFor(proposal.kind, proposal.cardIds.length) +
+        (proposal.jokerRank !== undefined ? ' (joker)' : ''),
       colorIndex: index % 4,
     }));
   }, [hand, reservedIds]);

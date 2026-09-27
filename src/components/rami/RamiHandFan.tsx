@@ -1,7 +1,7 @@
 'use client';
 
 import { motion, type PanInfo } from 'framer-motion';
-import { useCallback, useMemo, useRef } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { cardLabel } from '@/rami/cards';
 import type { CardId, RamiCard } from '@/rami/types';
 import { RamiPlayingCard } from '@/components/ramicard/RamiPlayingCard';
@@ -145,7 +145,13 @@ export function RamiHandFan({
         if (xs.length === 0) return null;
         const left = Math.min(...xs) - cardWidth / 2;
         const right = Math.max(...xs) + cardWidth / 2;
-        return { ...group, left, width: right - left };
+        const width = right - left;
+        // Un joker trié loin du reste (il n'a pas l'enseigne de la combinaison
+        // qu'il complète) étire ce bandeau sur toute la main : dans ce cas, le
+        // contour par carte suffit, un bandeau qui engloberait des cartes
+        // étrangères au groupe serait trompeur.
+        if (width > cardWidth * (group.cardIds.length + 1.5)) return null;
+        return { ...group, left, width };
       })
       .filter((box): box is NonNullable<typeof box> => box !== null);
   }, [autoGroups, selectedIds.length, cardIndexById, layout.slots, cardWidth]);
@@ -156,30 +162,45 @@ export function RamiHandFan({
   // geste a eu lieu, et le clic qui suit le relâchement est ignoré.
   const draggedRef = useRef(false);
   const frameRef = useRef<HTMLDivElement>(null);
+  // Emplacement visé pendant un glissement en cours : sans repère, le joueur
+  // ne sait pas où sa carte va atterrir avant de la lâcher.
+  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
+
+  const nearestSlot = useCallback((clientX: number): number => {
+    const frame = frameRef.current;
+    if (!frame) return 0;
+    const rect = frame.getBoundingClientRect();
+    const centerX = rect.left + rect.width / 2;
+    let best = 0;
+    let bestDistance = Infinity;
+    layout.slots.forEach((slot, index) => {
+      const distance = Math.abs(centerX + slot.x - clientX);
+      if (distance < bestDistance) {
+        bestDistance = distance;
+        best = index;
+      }
+    });
+    return best;
+  }, [layout.slots]);
+
+  const handleDrag = useCallback(
+    (_: unknown, info: PanInfo) => {
+      if (!onReorder) return;
+      setDragOverIndex(nearestSlot(info.point.x));
+    },
+    [onReorder, nearestSlot],
+  );
 
   const handleDragEnd = useCallback(
     (cardId: CardId, info: PanInfo) => {
+      setDragOverIndex(null);
       // La table a la priorité : défausse et combinaisons d'abord.
       const consumed = onDrop?.(cardId, info.point) ?? false;
 
       if (!consumed && onReorder) {
-        // Sinon le joueur range sa main : on cherche la place la plus proche
-        // du point de lâcher, mesurée sur les positions réelles des cartes.
-        const frame = frameRef.current;
-        if (frame) {
-          const rect = frame.getBoundingClientRect();
-          const centerX = rect.left + rect.width / 2;
-          let best = 0;
-          let bestDistance = Infinity;
-          layout.slots.forEach((slot, index) => {
-            const distance = Math.abs(centerX + slot.x - info.point.x);
-            if (distance < bestDistance) {
-              bestDistance = distance;
-              best = index;
-            }
-          });
-          onReorder(cardId, best);
-        }
+        // Sinon le joueur range sa main : on pose la carte là où le repère
+        // visuel l'annonçait, à l'endroit le plus proche du point de lâcher.
+        onReorder(cardId, nearestSlot(info.point.x));
       }
 
       // Le clic de fin de geste part juste après : on libère au tour suivant.
@@ -187,7 +208,7 @@ export function RamiHandFan({
         draggedRef.current = false;
       }, 0);
     },
-    [onDrop, onReorder, layout.slots],
+    [onDrop, onReorder, nearestSlot],
   );
 
   return (
@@ -237,6 +258,25 @@ export function RamiHandFan({
             {selectionLabel ?? 'Combinaison valide'} ✓
           </motion.div>
         </>
+      )}
+      {dragOverIndex !== null && layout.slots[dragOverIndex] && (
+        // Repère de dépose : pendant qu'on glisse une carte, on voit tout de
+        // suite où elle ira une fois relâchée, avant même de la lâcher.
+        <motion.div
+          aria-hidden="true"
+          className="pointer-events-none absolute rounded-full bg-gold-300"
+          style={{
+            left: '50%',
+            bottom: bottomInset - cardHeight * 0.08,
+            width: Math.max(3, cardWidth * 0.05),
+            height: cardHeight * 1.12,
+            zIndex: 998,
+            boxShadow: '0 0 16px 4px rgba(236,208,138,0.85)',
+          }}
+          initial={false}
+          animate={{ marginLeft: layout.slots[dragOverIndex].x - cardWidth / 2 - 6 }}
+          transition={{ type: 'spring', stiffness: 500, damping: 34 }}
+        />
       )}
       {autoGroupBoxes.map((box) => {
         const palette = GROUP_PALETTE[box.colorIndex] ?? GROUP_PALETTE[0];
@@ -349,6 +389,7 @@ export function RamiHandFan({
               onDragStart={() => {
                 draggedRef.current = true;
               }}
+              onDrag={handleDrag}
               onDragEnd={(_, info) => handleDragEnd(card.id, info)}
               whileDrag={{ scale: 1.14, zIndex: 999, cursor: 'grabbing' }}
               transition={{ type: 'spring', stiffness: 420, damping: 32 }}
