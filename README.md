@@ -221,6 +221,9 @@ fondus courts, sans jamais désactiver de fonctionnalité.
 - Les états ne reposent jamais uniquement sur la couleur : le chrono ajoute une
   pulsation, une équipe porte un nom en plus de sa teinte, une combinaison
   jouable annonce « Compléter ici ».
+- Raccourcis clavier au Rami : `P` piocher, `R` reprendre la défausse, `Entrée`
+  préparer/poser/jeter, `Échap` annuler, `T` trier la main par signe ou par
+  valeur. Ils sont listés dans le menu de la partie.
 - Contrastes renforcés sous `prefers-contrast: more`.
 
 ## Performance

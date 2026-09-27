@@ -17,6 +17,7 @@ import { FlightLayer } from '@/components/game/FlightLayer';
 import { ramiFlightCard } from '@/components/card/flightRenderers';
 import { useRamiDirector } from '@/hooks/useRamiDirector';
 import { useRamiTurn } from '@/hooks/useRamiTurn';
+import { useHandOrder } from '@/hooks/useHandOrder';
 import type { GameRoomHandle } from '@/hooks/useGameRoom';
 import { Button } from '@/components/ui/Button';
 import { Sheet } from '@/components/ui/Sheet';
@@ -35,6 +36,9 @@ import { GameOverSheet } from './GameOverSheet';
 import { buildRamiStatus } from './status';
 
 export type RamiRoom = GameRoomHandle<RamiPlayerView, RamiEvent>;
+
+/** Référence stable : évite de retrier la main à chaque rendu avant la vue. */
+const EMPTY_HAND: RamiPlayerView['hand'] = [];
 
 /** En dessous, l'écran est trop bas pour une mise en page confortable. */
 const SHORT_SCREEN = 540;
@@ -127,6 +131,7 @@ export function RamiTable({
 
   const isMyTurn = Boolean(view && view.currentPlayerId === view.youId);
   const turn = useRamiTurn(view, isMyTurn);
+  const hand = useHandOrder(view?.hand ?? EMPTY_HAND);
 
   const director = useRamiDirector({
     view,
@@ -272,6 +277,80 @@ export function RamiTable({
 
   const onNextRound = useCallback(() => void guarded('next_round'), [guarded]);
   const onRestart = useCallback(() => void guarded('restart'), [guarded]);
+
+  /* ---------------------------------------------------------------- */
+  /* Clavier                                                           */
+  /* ---------------------------------------------------------------- */
+
+  /**
+   * Raccourcis de bureau.
+   *
+   * Ils ne font rien de plus que les boutons : ils déclenchent exactement la
+   * même action, et se taisent dès qu'une feuille est ouverte ou qu'on écrit
+   * dans un champ.
+   */
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      if (event.metaKey || event.ctrlKey || event.altKey) return;
+      if (rulesOpen || menuOpen || summaryOpen) return;
+      const target = event.target as HTMLElement | null;
+      if (target && /^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName)) return;
+
+      const current = room.view;
+      if (!current || current.phase !== 'playing') return;
+      const mine = current.currentPlayerId === current.youId;
+      const stage = current.turn?.stage;
+
+      switch (event.key) {
+        case 'Escape':
+          if (turn.groups.length > 0) turn.clearGroups();
+          else turn.clearSelection();
+          break;
+        case 'p':
+        case 'P':
+          if (mine && stage === 'draw') {
+            event.preventDefault();
+            onDrawStock();
+          }
+          break;
+        case 'r':
+        case 'R':
+          if (mine && stage === 'draw' && current.discardTop) {
+            event.preventDefault();
+            onTakeDiscard();
+          }
+          break;
+        case 't':
+        case 'T':
+          event.preventDefault();
+          hand.toggle();
+          break;
+        case 'Enter':
+          if (!mine) break;
+          event.preventDefault();
+          if (turn.canLay) onLay();
+          else if (turn.selectionHint.valid && stage === 'meld') turn.addGroup();
+          else if (turn.canDiscard) onDiscard();
+          break;
+        default:
+          break;
+      }
+    };
+
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [
+    room.view,
+    rulesOpen,
+    menuOpen,
+    summaryOpen,
+    turn,
+    hand,
+    onDrawStock,
+    onTakeDiscard,
+    onLay,
+    onDiscard,
+  ]);
 
   /* ---------------------------------------------------------------- */
   /* Rendu                                                             */
@@ -458,8 +537,23 @@ export function RamiTable({
               onClearSelection={turn.clearSelection}
             />
 
+            <div className="flex items-center justify-end px-1">
+              <button
+                type="button"
+                onClick={hand.toggle}
+                className="rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-[0.64rem] font-semibold text-cream/55 transition hover:bg-white/12 hover:text-cream"
+                title="Trier la main (T)"
+                aria-label={`Trier la main — actuellement ${
+                  hand.order === 'suit' ? 'par signe' : 'par valeur'
+                }`}
+              >
+                <span aria-hidden="true">⇅ </span>
+                {hand.order === 'suit' ? 'Par signe' : 'Par valeur'}
+              </button>
+            </div>
+
             <RamiHandFan
-              cards={view.hand}
+              cards={hand.cards}
               selectedIds={turn.selected}
               reservedIds={turn.reservedIds}
               pinnedId={view.hints.mustUseTakenCard ? (view.turn?.takenCardId ?? null) : null}
@@ -533,6 +627,28 @@ export function RamiTable({
           <Button variant="danger" block onClick={onLeave}>
             Quitter la table
           </Button>
+
+          <div className="rounded-2xl border border-white/10 bg-white/[0.03] px-3 py-2.5">
+            <p className="mb-1.5 text-[0.62rem] font-bold uppercase tracking-[0.14em] text-cream/45">
+              Raccourcis clavier
+            </p>
+            <ul className="grid gap-1 text-[0.74rem] text-cream/60">
+              {[
+                ['P', 'Piocher au talon'],
+                ['R', 'Reprendre la défausse'],
+                ['Entrée', 'Préparer, poser, puis jeter'],
+                ['Échap', 'Annuler la sélection'],
+                ['T', 'Trier la main'],
+              ].map(([key, label]) => (
+                <li key={key} className="flex items-center gap-2">
+                  <kbd className="min-w-[3.2rem] rounded-md border border-white/15 bg-ink-950/60 px-1.5 py-0.5 text-center text-[0.66rem] font-semibold text-cream/80">
+                    {key}
+                  </kbd>
+                  <span>{label}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
         </div>
       </Sheet>
     </div>
