@@ -52,22 +52,22 @@ const SHORT_SCREEN = 540;
  * et la main.
  */
 function meldCardWidth(size: { width: number; height: number }): number {
-  if (size.width === 0) return 60;
-  if (size.height < SHORT_SCREEN) return 44;
-  if (size.width < 400) return 46;
-  if (size.width < 640) return 54;
-  if (size.width < 900) return 64;
-  if (size.width < 1280) return 72;
-  return 82;
+  if (size.width === 0) return 50;
+  if (size.height < SHORT_SCREEN) return 38;
+  if (size.width < 400) return 40;
+  if (size.width < 640) return 46;
+  if (size.width < 900) return 54;
+  if (size.width < 1280) return 60;
+  return 68;
 }
 
 function pileCardWidth(size: { width: number; height: number }): number {
-  if (size.width === 0) return 78;
-  if (size.height < SHORT_SCREEN) return 56;
-  if (size.width < 400) return 66;
-  if (size.width < 640) return 76;
-  if (size.width < 900) return 88;
-  return 104;
+  if (size.width === 0) return 64;
+  if (size.height < SHORT_SCREEN) return 46;
+  if (size.width < 400) return 56;
+  if (size.width < 640) return 64;
+  if (size.width < 900) return 74;
+  return 86;
 }
 
 /**
@@ -398,7 +398,18 @@ export function RamiTable({
   }
 
   const me = view.players.find((player) => player.id === view.youId) ?? null;
-  const opponents = view.players.filter((player) => player.id !== view.youId);
+  const others = view.players.filter((player) => player.id !== view.youId);
+  // En 2v2, le partenaire va au centre et les deux adversaires de part et
+  // d'autre : les équipes se font face plutôt que de dépendre de l'ordre
+  // d'arrivée à la table.
+  const opponents =
+    view.settings.mode === '2v2' && me
+      ? (() => {
+          const partner = others.find((player) => player.teamId === me.teamId);
+          const rivals = others.filter((player) => player.teamId !== me.teamId);
+          return partner && rivals.length === 2 ? [rivals[0], partner, rivals[1]] : others;
+        })()
+      : others;
   const status = buildRamiStatus(view);
   const stage = view.turn?.stage ?? 'draw';
   const locked = view.phase !== 'playing';
@@ -430,7 +441,11 @@ export function RamiTable({
         {/* Sur un écran bas — un téléphone en paysage — les sièges passent en
             colonne à droite : la hauteur est la ressource rare, la largeur non. */}
         {!short && (
-          <div className="flex shrink-0 flex-wrap items-start justify-center gap-1.5 px-2 pb-1">
+          <div
+            className={`flex shrink-0 flex-wrap items-start gap-1.5 px-2 pb-1 ${
+              view.settings.mode === '2v2' ? 'justify-between' : 'justify-center'
+            }`}
+          >
             {opponents.map((player) => (
               <RamiSeat
                 key={player.id}
@@ -505,7 +520,11 @@ export function RamiTable({
           </div>
 
           {short && (
-            <div className="relative flex max-h-full shrink-0 flex-col gap-1 overflow-y-auto">
+            <div
+              className={`relative flex max-h-full shrink-0 flex-col gap-1 overflow-y-auto ${
+                view.settings.mode === '2v2' ? 'justify-between' : ''
+              }`}
+            >
               {opponents.map((player) => (
                 <RamiSeat
                   key={player.id}
@@ -597,6 +616,7 @@ export function RamiTable({
               cards={hand.cards}
               selectedIds={turn.selected}
               selectionValid={turn.selectionHint.valid}
+              selectionLabel={turn.selectionHint.valid ? turn.selectionHint.text : null}
               reservedIds={turn.reservedIds}
               pinnedId={view.hints.mustUseTakenCard ? (view.turn?.takenCardId ?? null) : null}
               onToggle={turn.toggle}

@@ -29,6 +29,8 @@ interface RamiHandFanProps {
   onReorder?: (cardId: CardId, toIndex: number) => void;
   /** La sélection courante forme une combinaison valide. */
   selectionValid?: boolean;
+  /** Nom de la combinaison valide ("Tierce · 51 pts"), affiché au-dessus du groupe. */
+  selectionLabel?: string | null;
   /** Largeur disponible, en pixels. */
   width: number;
   compact: boolean;
@@ -53,6 +55,7 @@ export function RamiHandFan({
   cards,
   selectedIds,
   selectionValid = false,
+  selectionLabel = null,
   reservedIds,
   pinnedId,
   onToggle,
@@ -151,26 +154,41 @@ export function RamiHandFan({
       aria-label="Votre main"
     >
       {groupHighlight && (
-        <motion.div
-          aria-hidden="true"
-          className="pointer-events-none absolute rounded-[28%]"
-          style={{
-            left: '50%',
-            bottom: bottomInset - cardHeight * 0.12,
-            height: cardHeight * 1.2,
-            zIndex: 0,
-            background:
-              'linear-gradient(180deg, rgba(94,231,171,0.24), rgba(94,231,171,0.06))',
-            boxShadow: '0 0 34px 6px rgba(94,231,171,0.35)',
-          }}
-          initial={false}
-          animate={{
-            marginLeft: groupHighlight.left,
-            width: groupHighlight.width,
-            opacity: 1,
-          }}
-          transition={{ type: 'spring', stiffness: 380, damping: 32 }}
-        />
+        <>
+          <motion.div
+            aria-hidden="true"
+            className="pointer-events-none absolute rounded-[28%]"
+            style={{
+              left: '50%',
+              bottom: bottomInset - cardHeight * 0.14,
+              height: cardHeight * 1.32,
+              zIndex: 0,
+              background:
+                'linear-gradient(180deg, rgba(94,231,171,0.4), rgba(94,231,171,0.1))',
+              boxShadow: '0 0 44px 10px rgba(94,231,171,0.5)',
+            }}
+            initial={false}
+            animate={{
+              marginLeft: groupHighlight.left,
+              width: groupHighlight.width,
+              opacity: 1,
+            }}
+            transition={{ type: 'spring', stiffness: 380, damping: 32 }}
+          />
+          {/* Étiquette au-dessus du groupe : le nom de la combinaison, pas
+              seulement une couleur — pour qu'on comprenne au premier coup
+              d'œil que ces cartes forment UN bloc posable. */}
+          <motion.div
+            aria-hidden="true"
+            className="pointer-events-none absolute top-0 -translate-x-1/2 whitespace-nowrap rounded-full border border-emerald-300/70 bg-emerald-500 px-2.5 py-0.5 text-[0.62rem] font-bold uppercase tracking-wide text-ink-950 shadow-[0_2px_10px_rgba(0,0,0,0.4)]"
+            style={{ left: '50%', zIndex: 700 }}
+            initial={false}
+            animate={{ marginLeft: groupHighlight.left + groupHighlight.width / 2 }}
+            transition={{ type: 'spring', stiffness: 380, damping: 32 }}
+          >
+            {selectionLabel ?? 'Combinaison valide'} ✓
+          </motion.div>
+        </>
       )}
       {cards.map((card, index) => {
         const slot = layout.slots[index];
