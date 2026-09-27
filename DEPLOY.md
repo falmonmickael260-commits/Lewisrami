@@ -24,8 +24,7 @@ une réécriture de `src/server/roomStore.ts`, partagé par les deux jeux.
 ## Option 1 — Render (la plus simple, aucun jeton à créer)
 
 1. [dashboard.render.com](https://dashboard.render.com) → **New +** → **Blueprint**
-2. Choisir le dépôt `falmonmickael260-commits/presidente` et la branche à
-   déployer
+2. Choisir ce dépôt et la branche à déployer
 3. Render lit `render.yaml`, construit le `Dockerfile` et déploie
 4. (Optionnel) Onglet **Environment** → ajouter les deux variables Supabase
 
