@@ -18,10 +18,15 @@ interface RamiHandFanProps {
   onToggle: (cardId: CardId) => void;
   /**
    * Carte lâchée quelque part sur la table.
+   *
    * Le point est en coordonnées viewport : c'est la table qui décide de la
-   * cible, puisqu'elle seule connaît les ancres.
+   * cible, puisqu'elle seule connaît les ancres. Elle répond `true` si elle a
+   * traité le geste ; sinon, la carte est simplement rangée ailleurs dans la
+   * main.
    */
-  onDrop?: (cardId: CardId, point: { x: number; y: number }) => void;
+  onDrop?: (cardId: CardId, point: { x: number; y: number }) => boolean;
+  /** Le joueur range sa main : la carte va à cette place. */
+  onReorder?: (cardId: CardId, toIndex: number) => void;
   /** Largeur disponible, en pixels. */
   width: number;
   compact: boolean;
@@ -49,6 +54,7 @@ export function RamiHandFan({
   pinnedId,
   onToggle,
   onDrop,
+  onReorder,
   width,
   compact,
   maxCardWidth,
@@ -83,21 +89,47 @@ export function RamiHandFan({
   // Un glissement ne doit pas se terminer par une sélection : on retient qu'un
   // geste a eu lieu, et le clic qui suit le relâchement est ignoré.
   const draggedRef = useRef(false);
+  const frameRef = useRef<HTMLDivElement>(null);
 
   const handleDragEnd = useCallback(
     (cardId: CardId, info: PanInfo) => {
-      onDrop?.(cardId, info.point);
+      // La table a la priorité : défausse et combinaisons d'abord.
+      const consumed = onDrop?.(cardId, info.point) ?? false;
+
+      if (!consumed && onReorder) {
+        // Sinon le joueur range sa main : on cherche la place la plus proche
+        // du point de lâcher, mesurée sur les positions réelles des cartes.
+        const frame = frameRef.current;
+        if (frame) {
+          const rect = frame.getBoundingClientRect();
+          const centerX = rect.left + rect.width / 2;
+          let best = 0;
+          let bestDistance = Infinity;
+          layout.slots.forEach((slot, index) => {
+            const distance = Math.abs(centerX + slot.x - info.point.x);
+            if (distance < bestDistance) {
+              bestDistance = distance;
+              best = index;
+            }
+          });
+          onReorder(cardId, best);
+        }
+      }
+
       // Le clic de fin de geste part juste après : on libère au tour suivant.
       setTimeout(() => {
         draggedRef.current = false;
       }, 0);
     },
-    [onDrop],
+    [onDrop, onReorder, layout.slots],
   );
 
   return (
     <div
-      ref={bind(anchorKeys.hand)}
+      ref={(element) => {
+        bind(anchorKeys.hand)(element);
+        frameRef.current = element;
+      }}
       className="stage-3d relative mx-auto"
       style={{ width: '100%', height }}
       role="group"
@@ -125,7 +157,7 @@ export function RamiHandFan({
             key={card.id}
             ref={bind(anchorKeys.card(card.id))}
             type="button"
-            disabled={!interactive || isReserved}
+            disabled={isReserved}
             aria-pressed={isSelected}
             aria-label={[
               cardLabel(card),
@@ -136,7 +168,7 @@ export function RamiHandFan({
               .filter(Boolean)
               .join(', ')}
             onClick={() => {
-              if (draggedRef.current) return;
+              if (draggedRef.current || !interactive) return;
               onToggle(card.id);
             }}
             className="absolute left-1/2 top-auto origin-bottom will-animate no-select disabled:cursor-default"
@@ -175,7 +207,7 @@ export function RamiHandFan({
                 l'animation de position de la carte. */}
             <motion.div
               className="h-full w-full will-animate"
-              drag={interactive && !isReserved && Boolean(onDrop)}
+              drag={!isReserved && Boolean(onReorder)}
               dragSnapToOrigin
               dragMomentum={false}
               dragElastic={0.14}

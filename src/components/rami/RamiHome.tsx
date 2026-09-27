@@ -258,10 +258,10 @@ export function RamiHome() {
             📖 Règlement du Rami
           </button>
           <Link
-            href="/"
+            href="/president"
             className="text-[0.74rem] text-cream/35 transition hover:text-cream/70"
           >
-            Autres jeux de la maison
+            Jouer au Président
           </Link>
         </div>
       </div>

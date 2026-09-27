@@ -2,10 +2,10 @@ import type { MetadataRoute } from 'next';
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: 'Jeux de cartes en ligne — Rami et Le Président',
-    short_name: 'Jeux de cartes',
+    name: 'Rami — jeu de cartes multijoueur en ligne',
+    short_name: 'Rami',
     description:
-      'Le Rami et Le Président en multijoueur temps réel : tables premium, cartes vectorielles et règles complètes.',
+      'Le Rami en multijoueur temps réel : table premium, cartes vectorielles et règles complètes.',
     start_url: '/',
     display: 'standalone',
     orientation: 'portrait',

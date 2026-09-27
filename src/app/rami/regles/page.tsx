@@ -15,7 +15,7 @@ export default function Page() {
       <div className="pt-safe pb-safe mx-auto flex max-w-2xl flex-col gap-5 px-4 py-8">
         <header className="text-center">
           <Link
-            href="/rami"
+            href="/"
             className="text-[0.72rem] font-semibold uppercase tracking-[0.18em] text-cream/45 transition hover:text-cream"
           >
             ← Rami

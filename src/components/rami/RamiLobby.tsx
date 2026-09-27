@@ -57,7 +57,7 @@ export function RamiLobby({
       <div className="pt-safe pb-safe mx-auto flex min-h-dvh max-w-2xl flex-col gap-4 px-4 py-6">
         <header className="flex items-center justify-between gap-3">
           <Link
-            href="/rami"
+            href="/"
             className="text-[0.72rem] font-semibold uppercase tracking-[0.18em] text-cream/45 transition hover:text-cream"
           >
             ← Accueil

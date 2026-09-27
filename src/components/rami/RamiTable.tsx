@@ -227,11 +227,11 @@ export function RamiTable({
    * donc par la même validation serveur — que les boutons.
    */
   const onDropCard = useCallback(
-    (cardId: string, point: { x: number; y: number }) => {
+    (cardId: string, point: { x: number; y: number }): boolean => {
       const current = room.view;
-      if (!current || current.phase !== 'playing') return;
-      if (current.currentPlayerId !== current.youId) return;
-      if (current.turn?.stage !== 'meld') return;
+      if (!current || current.phase !== 'playing') return false;
+      if (current.currentPlayerId !== current.youId) return false;
+      if (current.turn?.stage !== 'meld') return false;
 
       const hits = (key: string, slack = 18) => {
         const anchor = read(key);
@@ -244,33 +244,35 @@ export function RamiTable({
 
       // Lâchée sur la défausse : le tour se termine.
       if (hits(anchorKeys.discard)) {
-        if (current.hints.mustUseTakenCard || turn.groups.length > 0) return;
+        if (current.hints.mustUseTakenCard || turn.groups.length > 0) return true;
         director.captureCards([cardId]);
         void guarded('discard', { cardId }).then((ok) => {
           if (ok) turn.clearSelection();
         });
-        return;
+        return true;
       }
 
       // Lâchée sur une combinaison : complément, si elle l'accepte.
       for (const meld of current.melds) {
         if (!hits(anchorKeys.meld(meld.id), 8)) continue;
         const card = current.hand.find((entry) => entry.id === cardId);
-        if (!card) return;
-        if (turn.affordanceFor(meld) === 'none') return;
+        if (!card) return true;
+        if (turn.affordanceFor(meld) === 'none') return true;
         if (!extendMeldWith(meld, [card]).ok) {
           director.pushNotice(
             'Cette carte ne complète pas cette combinaison.',
             'warn',
           );
-          return;
+          return true;
         }
         director.captureCards([cardId]);
         void guarded('extend_meld', { meldId: meld.id, cardIds: [cardId] }).then((ok) => {
           if (ok) turn.clearSelection();
         });
-        return;
+        return true;
       }
+
+      return false;
     },
     [room.view, read, turn, director, guarded],
   );
@@ -544,11 +546,19 @@ export function RamiTable({
                 className="rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-[0.64rem] font-semibold text-cream/55 transition hover:bg-white/12 hover:text-cream"
                 title="Trier la main (T)"
                 aria-label={`Trier la main — actuellement ${
-                  hand.order === 'suit' ? 'par signe' : 'par valeur'
+                  hand.order === 'manual'
+                    ? 'rangée à la main'
+                    : hand.order === 'suit'
+                      ? 'par signe'
+                      : 'par valeur'
                 }`}
               >
                 <span aria-hidden="true">⇅ </span>
-                {hand.order === 'suit' ? 'Par signe' : 'Par valeur'}
+                {hand.order === 'manual'
+                  ? 'Rangée à la main'
+                  : hand.order === 'suit'
+                    ? 'Par signe'
+                    : 'Par valeur'}
               </button>
             </div>
 
@@ -559,6 +569,7 @@ export function RamiTable({
               pinnedId={view.hints.mustUseTakenCard ? (view.turn?.takenCardId ?? null) : null}
               onToggle={turn.toggle}
               onDrop={onDropCard}
+              onReorder={hand.move}
               width={size.width}
               compact={compact}
               maxCardWidth={handWidth}

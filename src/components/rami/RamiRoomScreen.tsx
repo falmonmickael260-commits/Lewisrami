@@ -81,7 +81,7 @@ export function RamiRoomScreen({ code }: { code: string }) {
           Le code <span className="font-semibold text-gold-300">{code}</span> ne correspond à
           aucune partie de Rami. Elle a peut-être expiré.
         </p>
-        <Link href="/rami">
+        <Link href="/">
           <Button variant="primary" size="lg">
             Retour à l’accueil
           </Button>
@@ -112,7 +112,7 @@ function ConnectedRoom({ code, onRejoin }: { code: string; onRejoin: () => void 
     // On prévient le serveur : dans le salon, la place est libérée aussitôt.
     await room.send('leave');
     room.leave();
-    window.location.href = '/rami';
+    window.location.href = '/';
   }, [room]);
 
   // Le serveur ne nous reconnaît plus : jeton révoqué, salle relancée ou joueur retiré.
@@ -140,7 +140,7 @@ function ConnectedRoom({ code, onRejoin }: { code: string; onRejoin: () => void 
           >
             Rejoindre à nouveau
           </Button>
-          <Link href="/rami">
+          <Link href="/">
             <Button variant="ghost">Accueil</Button>
           </Link>
         </div>
@@ -262,7 +262,7 @@ function JoinGate({
               <p className="text-[0.92rem] leading-relaxed text-cream/60">
                 Cette partie a déjà commencé, ou la table est complète.
               </p>
-              <Link href="/rami">
+              <Link href="/">
                 <Button variant="secondary" block>
                   Créer ma propre partie
                 </Button>
