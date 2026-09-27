@@ -33,7 +33,7 @@ interface DirectorOptions {
 }
 
 export interface Director {
-  flights: Flight[];
+  flights: Flight<Card>[];
   onLanded: (id: string) => void;
   /** Poses effectivement arrivées sur la table (et non ce que dit le serveur).
    *  Le serveur ferme un pli dès le carré posé : c'est le client qui décide
@@ -65,7 +65,7 @@ export function useDirector({
   pileCardWidth,
   handCardWidth,
 }: DirectorOptions): Director {
-  const [flights, setFlights] = useState<Flight[]>([]);
+  const [flights, setFlights] = useState<Flight<Card>[]>([]);
   const [tableSets, setTableSets] = useState<PlayedSet[]>([]);
   const [sweepWinnerId, setSweepWinnerId] = useState<string | null>(null);
   const [carre, setCarre] = useState<CarreMoment | null>(null);
@@ -180,7 +180,7 @@ export function useDirector({
     // au mauvais endroit — les cartes partiraient alors de nulle part.
     requestAnimationFrame(() => {
       const current = viewRef.current;
-      const created: Flight[] = [];
+      const created: Flight<Card>[] = [];
       let carreInBatch = false;
       let playInBatch = false;
 

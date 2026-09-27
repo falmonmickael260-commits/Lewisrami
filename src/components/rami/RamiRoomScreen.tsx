@@ -3,41 +3,60 @@
 import { motion } from 'framer-motion';
 import Link from 'next/link';
 import { useCallback, useEffect, useState } from 'react';
+import type { RamiEvent } from '@/rami/types';
+import type { RamiPlayerView } from '@/rami/view';
 import { AnchorProvider } from '@/components/game/Anchors';
-import { GameTable } from '@/components/game/GameTable';
 import { IdentityPicker } from '@/components/lobby/IdentityPicker';
-import { Lobby } from '@/components/lobby/Lobby';
 import { Button } from '@/components/ui/Button';
-import { useRoom } from '@/hooks/useRoom';
+import { useGameRoom } from '@/hooks/useGameRoom';
 import { AVATARS, randomAvatar } from '@/lib/avatars';
-import { clearSession, loadIdentity, loadSession, saveIdentity, saveSession } from '@/lib/session';
+import {
+  clearSession,
+  loadIdentity,
+  loadSession,
+  saveIdentity,
+  saveSession,
+} from '@/lib/session';
 import { sound } from '@/lib/sound';
+import { MODE_LABELS } from '@/rami/scoring';
+import { RamiLobby } from './RamiLobby';
+import { RamiTable } from './RamiTable';
 
 type Probe =
   | { state: 'checking' }
   | { state: 'missing' }
-  | { state: 'ready'; joinable: boolean; playerCount: number };
+  | { state: 'ready'; joinable: boolean; playerCount: number; mode: string };
 
-export function RoomScreen({ code }: { code: string }) {
+/** Écran d'une salle de Rami : porte d'entrée, salon, puis table. */
+export function RamiRoomScreen({ code }: { code: string }) {
   const [probe, setProbe] = useState<Probe>({ state: 'checking' });
   const [hasSession, setHasSession] = useState<boolean | null>(null);
   const [generation, setGeneration] = useState(0);
 
   useEffect(() => {
-    setHasSession(Boolean(loadSession(code)));
+    setHasSession(Boolean(loadSession(code, 'rami')));
   }, [code]);
 
   useEffect(() => {
     let alive = true;
-    fetch(`/api/rooms/${code}`, { cache: 'no-store' })
+    fetch(`/api/rami/rooms/${code}`, { cache: 'no-store' })
       .then(async (response) => {
         if (!alive) return;
         if (!response.ok) {
           setProbe({ state: 'missing' });
           return;
         }
-        const body = (await response.json()) as { joinable: boolean; playerCount: number };
-        setProbe({ state: 'ready', joinable: body.joinable, playerCount: body.playerCount });
+        const body = (await response.json()) as {
+          joinable: boolean;
+          playerCount: number;
+          mode: string;
+        };
+        setProbe({
+          state: 'ready',
+          joinable: body.joinable,
+          playerCount: body.playerCount,
+          mode: body.mode,
+        });
       })
       .catch(() => alive && setProbe({ state: 'missing' }));
     return () => {
@@ -60,9 +79,9 @@ export function RoomScreen({ code }: { code: string }) {
         <h1 className="font-display text-4xl">Salle introuvable</h1>
         <p className="max-w-sm text-[0.92rem] leading-relaxed text-cream/55">
           Le code <span className="font-semibold text-gold-300">{code}</span> ne correspond à
-          aucune partie. Elle a peut-être expiré.
+          aucune partie de Rami. Elle a peut-être expiré.
         </p>
-        <Link href="/president">
+        <Link href="/rami">
           <Button variant="primary" size="lg">
             Retour à l’accueil
           </Button>
@@ -72,21 +91,28 @@ export function RoomScreen({ code }: { code: string }) {
   }
 
   if (!hasSession) {
-    return <JoinGate code={code} joinable={probe.joinable} onJoined={onJoined} />;
+    return (
+      <JoinGate
+        code={code}
+        joinable={probe.joinable}
+        mode={probe.mode}
+        onJoined={onJoined}
+      />
+    );
   }
 
   return <ConnectedRoom key={`${code}:${generation}`} code={code} onRejoin={onJoined} />;
 }
 
 function ConnectedRoom({ code, onRejoin }: { code: string; onRejoin: () => void }) {
-  const room = useRoom(code);
+  const room = useGameRoom<RamiPlayerView, RamiEvent>(code, '/api/rami/rooms', 'rami');
   const [kicked, setKicked] = useState(false);
 
   const leave = useCallback(async () => {
     // On prévient le serveur : dans le salon, la place est libérée aussitôt.
     await room.send('leave');
     room.leave();
-    window.location.href = '/president';
+    window.location.href = '/rami';
   }, [room]);
 
   // Le serveur ne nous reconnaît plus : jeton révoqué, salle relancée ou joueur retiré.
@@ -99,13 +125,14 @@ function ConnectedRoom({ code, onRejoin }: { code: string; onRejoin: () => void 
       <Centered>
         <h1 className="font-display text-4xl">Vous n’êtes plus à cette table</h1>
         <p className="max-w-sm text-[0.92rem] text-cream/55">
-          Votre place a été libérée. Vous pouvez rejoindre à nouveau si la partie n’a pas commencé.
+          Votre place a été libérée. Vous pouvez rejoindre à nouveau si la partie n’a pas
+          commencé.
         </p>
         <div className="flex gap-2">
           <Button
             variant="primary"
             onClick={() => {
-              clearSession(code);
+              clearSession(code, 'rami');
               setKicked(false);
               onRejoin();
               window.location.reload();
@@ -113,7 +140,7 @@ function ConnectedRoom({ code, onRejoin }: { code: string; onRejoin: () => void 
           >
             Rejoindre à nouveau
           </Button>
-          <Link href="/president">
+          <Link href="/rami">
             <Button variant="ghost">Accueil</Button>
           </Link>
         </div>
@@ -124,12 +151,14 @@ function ConnectedRoom({ code, onRejoin }: { code: string; onRejoin: () => void 
   if (!room.view) return <Splash label="Synchronisation…" />;
 
   if (room.view.phase === 'lobby') {
-    return <Lobby view={room.view} code={code} room={room} onLeave={() => void leave()} />;
+    return (
+      <RamiLobby view={room.view} code={code} room={room} onLeave={() => void leave()} />
+    );
   }
 
   return (
     <AnchorProvider>
-      <GameTable room={room} code={code} onLeave={() => void leave()} />
+      <RamiTable room={room} code={code} onLeave={() => void leave()} />
     </AnchorProvider>
   );
 }
@@ -137,10 +166,12 @@ function ConnectedRoom({ code, onRejoin }: { code: string; onRejoin: () => void 
 function JoinGate({
   code,
   joinable,
+  mode,
   onJoined,
 }: {
   code: string;
   joinable: boolean;
+  mode: string;
   onJoined: () => void;
 }) {
   const [name, setName] = useState('');
@@ -163,7 +194,7 @@ function JoinGate({
     setError(null);
     void sound().resume();
     try {
-      const response = await fetch(`/api/rooms/${code}/join`, {
+      const response = await fetch(`/api/rami/rooms/${code}/join`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name, avatar }),
@@ -178,7 +209,7 @@ function JoinGate({
         return;
       }
       saveIdentity({ name, avatar });
-      saveSession({ code, token: body.token, playerId: body.playerId });
+      saveSession({ code, token: body.token, playerId: body.playerId }, 'rami');
       onJoined();
     } catch {
       setError('Connexion impossible. Vérifiez votre réseau.');
@@ -197,7 +228,7 @@ function JoinGate({
           className="panel rounded-3xl p-6"
         >
           <p className="text-[0.62rem] font-bold uppercase tracking-[0.3em] text-gold-500/70">
-            Rejoindre la table
+            Rami · {MODE_LABELS[mode as keyof typeof MODE_LABELS] ?? mode}
           </p>
           <p className="text-gradient-gold mb-5 font-display text-5xl tracking-[0.2em]">{code}</p>
 
@@ -229,9 +260,9 @@ function JoinGate({
           ) : (
             <div className="flex flex-col gap-4">
               <p className="text-[0.92rem] leading-relaxed text-cream/60">
-                Cette partie a déjà commencé ou la table est complète.
+                Cette partie a déjà commencé, ou la table est complète.
               </p>
-              <Link href="/president">
+              <Link href="/rami">
                 <Button variant="secondary" block>
                   Créer ma propre partie
                 </Button>
@@ -253,7 +284,7 @@ function Splash({ label }: { label: string }) {
         className="text-5xl"
         aria-hidden="true"
       >
-        🂡
+        🃏
       </motion.div>
       <p className="text-[0.86rem] uppercase tracking-[0.22em] text-cream/45">{label}</p>
     </Centered>

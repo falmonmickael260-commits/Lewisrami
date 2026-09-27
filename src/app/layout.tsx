@@ -16,15 +16,22 @@ const sans = Manrope({
 });
 
 export const metadata: Metadata = {
-  title: 'Le Président — jeu de cartes en ligne',
+  title: {
+    default: 'Jeux de cartes en ligne — Rami et Le Président',
+    template: '%s',
+  },
   description:
-    'Le Président en multijoueur temps réel : 3 à 8 joueurs, table premium, animations de cartes et règles officielles. Créez une salle et partagez le code.',
-  applicationName: 'Le Président',
-  appleWebApp: { capable: true, statusBarStyle: 'black-translucent', title: 'Le Président' },
+    'Le Rami et Le Président en multijoueur temps réel : tables premium, cartes entièrement vectorielles et règles complètes. Sans compte, sans installation.',
+  applicationName: 'Jeux de cartes',
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'black-translucent',
+    title: 'Jeux de cartes',
+  },
   openGraph: {
-    title: 'Le Président — jeu de cartes en ligne',
+    title: 'Jeux de cartes en ligne — Rami et Le Président',
     description:
-      'Affrontez 3 à 8 joueurs en temps réel. Dame de pique, carrés, Président et Trou du Cul.',
+      'Créez une table, partagez un code de quatre lettres, et jouez en temps réel depuis n’importe quel écran.',
     type: 'website',
   },
   formatDetection: { telephone: false },

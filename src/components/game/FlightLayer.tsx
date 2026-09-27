@@ -1,14 +1,19 @@
 'use client';
 
-import { memo } from 'react';
+import { memo, type ReactNode } from 'react';
 import { motion } from 'framer-motion';
-import type { Card } from '@/game/types';
-import { PlayingCard } from '@/components/card/PlayingCard';
 import { CARD_RATIO } from '@/components/card/geometry';
 
-export interface Flight {
+/**
+ * Une carte en vol, indépendante du jeu.
+ *
+ * `TCard` reste générique : le Président et le Rami n'ont ni les mêmes valeurs
+ * ni les mêmes faces, et c'est l'appelant qui fournit le rendu via `renderCard`.
+ * Dessiner une carte de Rami avec la face du Président donnerait une carte vide.
+ */
+export interface Flight<TCard = unknown> {
   id: string;
-  card: Card | null;
+  card: TCard | null;
   fromX: number;
   fromY: number;
   fromWidth: number;
@@ -25,10 +30,14 @@ export interface Flight {
   bounce: boolean;
 }
 
-interface FlightCardProps {
-  flight: Flight;
+/** Rendu d'une carte en vol : face visible si `card`, dos sinon. */
+export type FlightCardRenderer<TCard> = (card: TCard | null, width: number) => ReactNode;
+
+interface FlightCardProps<TCard> {
+  flight: Flight<TCard>;
   onLanded: (id: string) => void;
   reducedMotion: boolean;
+  renderCard: FlightCardRenderer<TCard>;
 }
 
 /**
@@ -39,7 +48,12 @@ interface FlightCardProps {
  * chute accélérée), et la dernière couche porte la rotation, l'échelle et
  * le micro-rebond d'impact.
  */
-function FlightCardBase({ flight, onLanded, reducedMotion }: FlightCardProps) {
+function FlightCardBase<TCard>({
+  flight,
+  onLanded,
+  reducedMotion,
+  renderCard,
+}: FlightCardProps<TCard>) {
   const width = flight.toWidth;
   const height = width / CARD_RATIO;
   const startScale = flight.fromWidth / flight.toWidth;
@@ -58,13 +72,7 @@ function FlightCardBase({ flight, onLanded, reducedMotion }: FlightCardProps) {
         style={{ x: flight.toX, y: flight.toY }}
       >
         <div style={{ marginLeft: -width / 2, marginTop: -height / 2 }}>
-          <PlayingCard
-            card={flight.card ?? undefined}
-            faceDown={!flight.card}
-            lite={!flight.card}
-            width={width}
-            elevation="lift"
-          />
+          {renderCard(flight.card, width)}
         </div>
       </motion.div>
     );
@@ -117,29 +125,25 @@ function FlightCardBase({ flight, onLanded, reducedMotion }: FlightCardProps) {
           }}
           onAnimationComplete={() => onLanded(flight.id)}
         >
-          <PlayingCard
-            card={flight.card ?? undefined}
-            faceDown={!flight.card}
-            lite={!flight.card}
-            width={width}
-            elevation="fly"
-          />
+          {renderCard(flight.card, width)}
         </motion.div>
       </motion.div>
     </motion.div>
   );
 }
 
-const FlightCard = memo(FlightCardBase);
+const FlightCard = memo(FlightCardBase) as typeof FlightCardBase;
 
-export function FlightLayer({
+export function FlightLayer<TCard>({
   flights,
   onLanded,
   reducedMotion,
+  renderCard,
 }: {
-  flights: Flight[];
+  flights: Flight<TCard>[];
   onLanded: (id: string) => void;
   reducedMotion: boolean;
+  renderCard: FlightCardRenderer<TCard>;
 }) {
   return (
     <div className="pointer-events-none fixed inset-0 z-40" aria-hidden="true">
@@ -149,6 +153,7 @@ export function FlightLayer({
           flight={flight}
           onLanded={onLanded}
           reducedMotion={reducedMotion}
+          renderCard={renderCard}
         />
       ))}
     </div>

@@ -21,6 +21,7 @@ import { CarreOverlay } from './CarreOverlay';
 import { CenterPile } from './CenterPile';
 import { ExchangePanel } from './ExchangePanel';
 import { FlightLayer } from './FlightLayer';
+import { presidentFlightCard } from '@/components/card/flightRenderers';
 import { HandFan } from './HandFan';
 import { MySeatBadge } from './MySeatBadge';
 import { Notices } from './Notices';
@@ -418,6 +419,7 @@ export function GameTable({
         flights={director.flights}
         onLanded={director.onLanded}
         reducedMotion={reducedMotion}
+        renderCard={presidentFlightCard}
       />
       <Notices notices={director.notices} />
       <CarreOverlay

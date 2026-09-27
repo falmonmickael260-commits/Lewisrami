@@ -4,10 +4,19 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/Button';
 
 /** Copie du code et partage natif : sur mobile, l'invitation part en un geste. */
-export function ShareRow({ code }: { code: string }) {
+export function ShareRow({
+  code,
+  path = '/salle',
+  gameName = 'Le Président',
+}: {
+  code: string;
+  /** Racine des salles du jeu concerné. */
+  path?: string;
+  gameName?: string;
+}) {
   const [copied, setCopied] = useState<'code' | 'link' | null>(null);
 
-  const url = typeof window !== 'undefined' ? `${window.location.origin}/salle/${code}` : '';
+  const url = typeof window !== 'undefined' ? `${window.location.origin}${path}/${code}` : '';
 
   const copy = async (what: 'code' | 'link') => {
     try {
@@ -21,8 +30,8 @@ export function ShareRow({ code }: { code: string }) {
 
   const share = async () => {
     const data = {
-      title: 'Le Président',
-      text: `Rejoins ma partie du Président — code ${code}`,
+      title: gameName,
+      text: `Rejoins ma partie de ${gameName} — code ${code}`,
       url,
     };
     if (typeof navigator !== 'undefined' && navigator.share) {

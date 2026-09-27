@@ -69,4 +69,8 @@ export const anchorKeys = {
   deck: 'deck',
   hand: 'hand',
   card: (cardId: string) => `card:${cardId}`,
+  /* Rami */
+  stock: 'stock',
+  discard: 'discard',
+  meld: (meldId: string) => `meld:${meldId}`,
 };

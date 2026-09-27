@@ -6,7 +6,8 @@
  * dépendre du hasard de la distribution.
  */
 
-import { makeCard, makeJoker, sortHand } from './cards';
+import { sortHand } from './cards';
+import { cardFromSpec, cardsFromSpec } from './notation';
 import { buildMeld } from './melds';
 import { settingsFor, syncTeams } from './engine';
 import { teamOfSeat } from './scoring';
@@ -23,62 +24,15 @@ import type {
 } from './types';
 import type { RamiRank } from './types';
 
-const SUIT_BY_LETTER: Record<string, Suit> = {
-  S: 'S',
-  P: 'S', // pique
-  H: 'H',
-  C: 'C',
-  T: 'C', // trèfle
-  D: 'D',
-  K: 'D', // karreau — évite la collision avec le Roi
-};
-
-const RANK_BY_LABEL: Record<string, RamiRank> = {
-  A: 1,
-  '2': 2,
-  '3': 3,
-  '4': 4,
-  '5': 5,
-  '6': 6,
-  '7': 7,
-  '8': 8,
-  '9': 9,
-  '10': 10,
-  J: 11,
-  V: 11,
-  Q: 12,
-  D: 12,
-  K: 13,
-  R: 13,
-};
-
 /**
  * Carte depuis une notation courte : `H7` (7 de cœur), `SA` (as de pique),
  * `HR` ou `HK` (roi de cœur), `H7'` (second exemplaire), `X` / `X2` (joker).
+ * L'analyseur lui-même vit dans `notation.ts` : il sert aussi au règlement.
  */
-export function c(spec: string): RamiCard {
-  const doubled = spec.endsWith("'");
-  const body = doubled ? spec.slice(0, -1) : spec;
-
-  if (body[0] === 'X') {
-    const index = body.length > 1 ? Number(body.slice(1)) : 0;
-    return makeJoker(index);
-  }
-
-  const suit = SUIT_BY_LETTER[body[0]];
-  const rankLabel = body.slice(1).toUpperCase();
-  const rank = RANK_BY_LABEL[rankLabel];
-  if (!suit || rank === undefined) throw new Error(`Carte illisible : ${spec}`);
-  return makeCard(rank, suit, doubled ? 1 : 0);
-}
+export const c = cardFromSpec;
 
 /** Plusieurs cartes d'un coup : `cards('H5 H6 H7')`. */
-export function cards(spec: string): RamiCard[] {
-  return spec
-    .split(/\s+/)
-    .filter(Boolean)
-    .map((entry) => c(entry));
-}
+export const cards = cardsFromSpec;
 
 export interface TableOptions {
   mode?: GameMode;

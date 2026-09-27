@@ -9,8 +9,17 @@ export interface Identity {
   avatar: string;
 }
 
-const SESSION_PREFIX = 'president:session:';
-const IDENTITY_KEY = 'president:identity';
+/**
+ * Les deux jeux cohabitent dans la même application : les sessions sont donc
+ * cloisonnées par jeu, sinon un code de salle commun ferait passer le jeton
+ * d'une table du Président pour celui d'une table de Rami.
+ */
+export type GameNamespace = 'president' | 'rami';
+
+const sessionKey = (game: GameNamespace, code: string) => `${game}:session:${code}`;
+/** L'identité (pseudo, avatar) est volontairement commune aux deux jeux. */
+const IDENTITY_KEY = 'joueur:identite';
+const LEGACY_IDENTITY_KEY = 'president:identity';
 
 function safeGet(key: string): string | null {
   try {
@@ -29,9 +38,9 @@ function safeSet(key: string, value: string) {
 }
 
 /** La session d'une salle survit à un rafraîchissement : c'est la clé de la reconnexion. */
-export function loadSession(code: string): StoredSession | null {
+export function loadSession(code: string, game: GameNamespace = 'president'): StoredSession | null {
   if (typeof window === 'undefined') return null;
-  const raw = safeGet(SESSION_PREFIX + code);
+  const raw = safeGet(sessionKey(game, code));
   if (!raw) return null;
   try {
     const parsed = JSON.parse(raw) as StoredSession;
@@ -41,14 +50,14 @@ export function loadSession(code: string): StoredSession | null {
   }
 }
 
-export function saveSession(session: StoredSession) {
+export function saveSession(session: StoredSession, game: GameNamespace = 'president') {
   if (typeof window === 'undefined') return;
-  safeSet(SESSION_PREFIX + session.code, JSON.stringify(session));
+  safeSet(sessionKey(game, session.code), JSON.stringify(session));
 }
 
-export function clearSession(code: string) {
+export function clearSession(code: string, game: GameNamespace = 'president') {
   try {
-    window.localStorage.removeItem(SESSION_PREFIX + code);
+    window.localStorage.removeItem(sessionKey(game, code));
   } catch {
     /* ignoré */
   }
@@ -56,7 +65,7 @@ export function clearSession(code: string) {
 
 export function loadIdentity(): Identity | null {
   if (typeof window === 'undefined') return null;
-  const raw = safeGet(IDENTITY_KEY);
+  const raw = safeGet(IDENTITY_KEY) ?? safeGet(LEGACY_IDENTITY_KEY);
   if (!raw) return null;
   try {
     const parsed = JSON.parse(raw) as Identity;

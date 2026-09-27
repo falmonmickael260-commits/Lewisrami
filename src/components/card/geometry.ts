@@ -1,6 +1,12 @@
 import type { Rank } from '@/game/types';
 
-/** Géométrie de référence d'une carte (ratio poker 2,5 × 3,5). */
+/**
+ * Géométrie de référence d'une carte (ratio poker 2,5 × 3,5).
+ *
+ * Ce module est partagé par les deux jeux : les dispositions d'enseignes sont
+ * indexées par **nombre d'enseignes à placer**, pas par la valeur propre à un
+ * jeu. Le Président et le Rami y font correspondre leurs valeurs.
+ */
 export const CARD_W = 250;
 export const CARD_H = 350;
 export const CARD_RATIO = CARD_W / CARD_H;
@@ -33,10 +39,11 @@ function center(t: number): Point {
 }
 
 /**
- * Dispositions traditionnelles des enseignes.
+ * Dispositions traditionnelles des enseignes, par **nombre d'enseignes**.
  * Les figures de la moitié basse sont retournées à 180°, comme sur un vrai jeu.
  */
-const LAYOUTS: Partial<Record<Rank, Point[]>> = {
+const LAYOUTS: Record<number, Point[]> = {
+  2: [center(0), center(1)],
   3: [center(0), center(0.5), center(1)],
   4: [...pair(0), ...pair(1)],
   5: [...pair(0), center(0.5), ...pair(1)],
@@ -58,11 +65,19 @@ const LAYOUTS: Partial<Record<Rank, Point[]>> = {
     center(5 / 6),
     ...pair(1),
   ],
-  15: [center(0), center(1)],
 };
 
+/** Disposition pour un nombre d'enseignes donné (2 à 10). */
+export function pipLayoutForCount(count: number): Point[] {
+  return LAYOUTS[count] ?? [];
+}
+
+/**
+ * Disposition du Président, où le 2 est encodé comme la valeur la plus haute
+ * (15) et ne porte donc que deux enseignes.
+ */
 export function pipLayout(rank: Rank): Point[] {
-  return LAYOUTS[rank] ?? [];
+  return pipLayoutForCount(rank === 15 ? 2 : rank);
 }
 
 export const PIP_SIZE = 44;
