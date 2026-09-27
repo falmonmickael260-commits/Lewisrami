@@ -9,7 +9,10 @@ services:
     name: jeux-de-cartes
     runtime: docker
     dockerfilePath: ./Dockerfile
-    plan: starter
+    # Plan gratuit : le service s'endort après 15 min sans trafic et perd les
+    # parties en mémoire au réveil. Passer à `starter` pour un serveur qui
+    # tourne en continu.
+    plan: free
     region: frankfurt
     numInstances: 1
     healthCheckPath: /
