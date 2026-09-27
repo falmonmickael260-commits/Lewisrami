@@ -149,8 +149,8 @@ export function RamiTable({
   const handWidth = useMemo(() => handMaxCard(size, compact), [size, compact]);
 
   const isMyTurn = Boolean(view && view.currentPlayerId === view.youId);
-  const turn = useRamiTurn(view, isMyTurn);
   const hand = useHandOrder(view?.hand ?? EMPTY_HAND);
+  const turn = useRamiTurn(view, isMyTurn, hand.cards);
 
   const director = useRamiDirector({
     view,

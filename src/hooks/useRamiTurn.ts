@@ -80,7 +80,12 @@ function labelFor(kind: 'run' | 'set', size: number): string {
  * main : le serveur revalide systématiquement. Aucun coup n'est jamais autorisé
  * par ce fichier.
  */
-export function useRamiTurn(view: RamiPlayerView | null, isMyTurn: boolean): RamiTurnState {
+export function useRamiTurn(
+  view: RamiPlayerView | null,
+  isMyTurn: boolean,
+  /** Cartes dans l'ordre réellement affiché (tri ou rangement manuel). */
+  displayHand: readonly RamiCard[] = [],
+): RamiTurnState {
   const [selected, setSelected] = useState<CardId[]>([]);
   const [groups, setGroups] = useState<StagedGroup[]>([]);
 
@@ -116,22 +121,54 @@ export function useRamiTurn(view: RamiPlayerView | null, isMyTurn: boolean): Ram
    * n'affiche qu'un repère visuel, la validité réelle pour poser reste
    * vérifiée par le serveur au moment du clic sur « Poser ».
    */
+  /**
+   * Repère les cartes déjà **côte à côte** dans l'ordre affiché (celui du tri
+   * ou du rangement manuel du joueur) qui forment une combinaison valide.
+   *
+   * Volontairement différent du solveur utilisé pour « Proposition » : ici on
+   * ne cherche jamais à travers toute la main, seulement dans des cartes déjà
+   * groupées ensemble — trier par signe fait sortir les tierces, par valeur
+   * les brelans, et déplacer une carte à côté des autres aide à construire.
+   */
   const handGroups = useMemo(() => {
-    const detectable = hand.filter((card) => !reservedIds.has(card.id));
-    if (detectable.length < 3) return [];
-    const lay = findLayDown(detectable, { keepAtLeast: 0 });
-    if (!lay) return [];
-    return lay.melds.map((proposal, index) => ({
-      id: `auto-${index}`,
-      cardIds: proposal.cardIds,
-      // Un joker qui complète la combinaison le dit clairement : sans cette
-      // précision, les cartes du groupe peuvent sembler n'avoir aucun rapport.
-      label:
-        labelFor(proposal.kind, proposal.cardIds.length) +
-        (proposal.jokerRank !== undefined ? ' (joker)' : ''),
-      colorIndex: index % 4,
-    }));
-  }, [hand, reservedIds]);
+    const groups: { id: string; cardIds: CardId[]; label: string; colorIndex: number }[] = [];
+    const claimed = new Set<CardId>();
+    let i = 0;
+    while (i < displayHand.length) {
+      const card = displayHand[i];
+      if (reservedIds.has(card.id) || claimed.has(card.id)) {
+        i += 1;
+        continue;
+      }
+      let matchSize = 0;
+      let matchKind: 'run' | 'set' | null = null;
+      for (const size of [4, 3]) {
+        const window = displayHand.slice(i, i + size);
+        if (window.length !== size) continue;
+        if (window.some((c) => reservedIds.has(c.id) || claimed.has(c.id))) continue;
+        const result = guessKind(window, view?.youId ?? 'me');
+        if (result.ok) {
+          matchSize = size;
+          matchKind = result.kind;
+          break;
+        }
+      }
+      if (matchKind) {
+        const ids = displayHand.slice(i, i + matchSize).map((c) => c.id);
+        for (const id of ids) claimed.add(id);
+        groups.push({
+          id: `auto-${groups.length}`,
+          cardIds: ids,
+          label: labelFor(matchKind, matchSize),
+          colorIndex: groups.length % 4,
+        });
+        i += matchSize;
+      } else {
+        i += 1;
+      }
+    }
+    return groups;
+  }, [displayHand, reservedIds, view?.youId]);
 
   const selectedCards = useMemo(
     () =>
