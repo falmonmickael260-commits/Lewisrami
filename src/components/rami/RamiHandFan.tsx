@@ -125,15 +125,10 @@ export function RamiHandFan({
     return map;
   }, [cards]);
 
-  const autoGroupColorByCard = useMemo(() => {
-    const map = new Map<CardId, number>();
-    if (selectedIds.length > 0) return map;
-    for (const group of autoGroups) {
-      for (const id of group.cardIds) map.set(id, group.colorIndex);
-    }
-    return map;
-  }, [autoGroups, selectedIds.length]);
-
+  // Un groupe détecté n'est surligné — contour par carte compris — que si ses
+  // cartes sont vraiment regroupées dans la main. Un joker trié loin du reste
+  // (il n'a pas l'enseigne de la combinaison qu'il complète) rendrait le
+  // repère trompeur : dans ce cas, on préfère ne rien surligner du tout.
   const autoGroupBoxes = useMemo(() => {
     if (selectedIds.length > 0) return [];
     return autoGroups
@@ -146,15 +141,19 @@ export function RamiHandFan({
         const left = Math.min(...xs) - cardWidth / 2;
         const right = Math.max(...xs) + cardWidth / 2;
         const width = right - left;
-        // Un joker trié loin du reste (il n'a pas l'enseigne de la combinaison
-        // qu'il complète) étire ce bandeau sur toute la main : dans ce cas, le
-        // contour par carte suffit, un bandeau qui engloberait des cartes
-        // étrangères au groupe serait trompeur.
         if (width > cardWidth * (group.cardIds.length + 1.5)) return null;
         return { ...group, left, width };
       })
       .filter((box): box is NonNullable<typeof box> => box !== null);
   }, [autoGroups, selectedIds.length, cardIndexById, layout.slots, cardWidth]);
+
+  const autoGroupColorByCard = useMemo(() => {
+    const map = new Map<CardId, number>();
+    for (const box of autoGroupBoxes) {
+      for (const id of box.cardIds) map.set(id, box.colorIndex);
+    }
+    return map;
+  }, [autoGroupBoxes]);
 
   const stagger = reducedMotion ? 0 : dealStagger;
 
