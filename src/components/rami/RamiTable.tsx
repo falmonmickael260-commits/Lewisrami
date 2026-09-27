@@ -414,6 +414,27 @@ export function RamiTable({
   const stage = view.turn?.stage ?? 'draw';
   const locked = view.phase !== 'playing';
 
+  const renderSeat = (player: (typeof opponents)[number], dense = false) => (
+    <RamiSeat
+      key={player.id}
+      player={player}
+      mode={view.settings.mode}
+      isCurrent={view.currentPlayerId === player.id}
+      isDealer={view.dealerId === player.id}
+      isPartner={Boolean(me && me.teamId === player.teamId)}
+      deadline={view.currentPlayerId === player.id ? view.turnDeadline : null}
+      totalMs={view.turnTotalMs ?? view.settings.turnSeconds * 1000}
+      clockSkew={room.clockSkew}
+      compact={compact}
+      dense={dense}
+    />
+  );
+  // 2v2 en croix (portrait/desktop) : partenaire au-dessus, adversaires de
+  // chaque côté de la table — sur écran bas, la colonne compacte existante
+  // suffit et reste inchangée.
+  const isCross2v2 = !short && view.settings.mode === '2v2';
+  const [rivalLeft, partner2v2, rivalRight] = isCross2v2 ? opponents : [null, null, null];
+
   const canDrawStock = isMyTurn && !locked && stage === 'draw';
   const canTakeDiscard = isMyTurn && !locked && stage === 'draw' && view.discardTop !== null;
   const canCancelTake = Boolean(
@@ -437,113 +458,110 @@ export function RamiTable({
       />
 
       <div className="flex min-h-0 flex-1 flex-col" style={{ paddingTop: 'var(--table-top-bar)' }}>
-        {/* ------------------------------------------------- Adversaires */}
+        {/* ---------------------------------------- Adversaires + tapis */}
         {/* Sur un écran bas — un téléphone en paysage — les sièges passent en
             colonne à droite : la hauteur est la ressource rare, la largeur non. */}
-        {!short && (
-          <div
-            className={`flex shrink-0 flex-wrap items-start gap-1.5 px-2 pb-1 ${
-              view.settings.mode === '2v2' ? 'justify-between' : 'justify-center'
-            }`}
-          >
-            {opponents.map((player) => (
-              <RamiSeat
-                key={player.id}
-                player={player}
-                mode={view.settings.mode}
-                isCurrent={view.currentPlayerId === player.id}
-                isDealer={view.dealerId === player.id}
-                isPartner={Boolean(me && me.teamId === player.teamId)}
-                deadline={view.currentPlayerId === player.id ? view.turnDeadline : null}
-                totalMs={view.turnTotalMs ?? view.settings.turnSeconds * 1000}
-                clockSkew={room.clockSkew}
+        {(() => {
+          const felt = (
+            <div
+              aria-hidden="true"
+              className={`pointer-events-none absolute rounded-[2rem] border border-gold-500/10 ${
+                short ? '-inset-x-2 -inset-y-1' : '-inset-x-3 -inset-y-4 sm:-inset-x-5 sm:-inset-y-6'
+              }`}
+              style={{
+                background:
+                  'radial-gradient(75% 95% at 50% 45%, rgb(255 255 255 / 0.05), transparent 72%)',
+                boxShadow:
+                  'inset 0 1px 0 rgb(255 255 255 / 0.05), 0 50px 110px -70px rgb(0 0 0 / 0.95)',
+              }}
+            />
+          );
+          const piles = (
+            <div className="relative flex shrink-0 justify-center sm:items-center">
+              <Piles
+                stockCount={view.stockCount}
+                discardTop={view.discardTop}
+                discardCount={view.discardCount}
+                cardWidth={pileWidth}
+                canDrawStock={canDrawStock}
+                canTakeDiscard={canTakeDiscard}
+                canDropDiscard={turn.canDiscard}
+                onDrawStock={onDrawStock}
+                onTakeDiscard={onTakeDiscard}
+                onDiscard={onDiscard}
+                recycles={view.recycles}
+                hiddenCardIds={director.pendingCardIds}
                 compact={compact}
               />
-            ))}
-          </div>
-        )}
-
-        {/* -------------------------------------- Pioche, défausse, tapis */}
-        {/* L'aire de jeu est centrée verticalement : une table vide ne doit pas
-            laisser un grand vide entre la pioche et la main. */}
-        <div className="flex min-h-0 flex-1 items-center justify-center px-2">
-          <div className="relative mx-auto flex max-h-full w-full max-w-5xl flex-col gap-2 sm:flex-row sm:gap-4">
-          {/* Incrustation du tapis : ancre visuellement l'aire de jeu, pour
-              qu'une table encore vide ressemble à une table et non à du vide. */}
-          <div
-            aria-hidden="true"
-            className={`pointer-events-none absolute rounded-[2rem] border border-gold-500/10 ${
-              short ? '-inset-x-2 -inset-y-1' : '-inset-x-3 -inset-y-4 sm:-inset-x-5 sm:-inset-y-6'
-            }`}
-            style={{
-              background:
-                'radial-gradient(75% 95% at 50% 45%, rgb(255 255 255 / 0.05), transparent 72%)',
-              boxShadow:
-                'inset 0 1px 0 rgb(255 255 255 / 0.05), 0 50px 110px -70px rgb(0 0 0 / 0.95)',
-            }}
-          />
-          <div className="relative flex shrink-0 justify-center sm:items-center">
-            <Piles
-              stockCount={view.stockCount}
-              discardTop={view.discardTop}
-              discardCount={view.discardCount}
-              cardWidth={pileWidth}
-              canDrawStock={canDrawStock}
-              canTakeDiscard={canTakeDiscard}
-              canDropDiscard={turn.canDiscard}
-              onDrawStock={onDrawStock}
-              onTakeDiscard={onTakeDiscard}
-              onDiscard={onDiscard}
-              recycles={view.recycles}
-              hiddenCardIds={director.pendingCardIds}
-              compact={compact}
-            />
-          </div>
-
-          <div
-            className="relative flex min-h-0 max-h-full flex-1 flex-col justify-center overflow-y-auto overflow-x-hidden py-1 pr-0.5"
-            aria-label="Combinaisons posées"
-          >
-            <MeldsBoard
-              melds={view.melds}
-              players={view.players}
-              mode={view.settings.mode}
-              myTeamId={me?.teamId ?? null}
-              cardWidth={tableCardWidth}
-              compact={compact}
-              affordanceFor={turn.affordanceFor}
-              onActivate={onMeldActivate}
-              freshCardIds={director.freshCardIds}
-              hiddenCardIds={director.pendingCardIds}
-              emptyHint={emptyHint}
-            />
-          </div>
-
-          {short && (
-            <div
-              className={`relative flex max-h-full shrink-0 flex-col gap-1 overflow-y-auto ${
-                view.settings.mode === '2v2' ? 'justify-between' : ''
-              }`}
-            >
-              {opponents.map((player) => (
-                <RamiSeat
-                  key={player.id}
-                  player={player}
-                  mode={view.settings.mode}
-                  isCurrent={view.currentPlayerId === player.id}
-                  isDealer={view.dealerId === player.id}
-                  isPartner={Boolean(me && me.teamId === player.teamId)}
-                  deadline={view.currentPlayerId === player.id ? view.turnDeadline : null}
-                  totalMs={view.turnTotalMs ?? view.settings.turnSeconds * 1000}
-                  clockSkew={room.clockSkew}
-                  compact
-                  dense
-                />
-              ))}
             </div>
-          )}
-          </div>
-        </div>
+          );
+          const board = (
+            <div
+              className="relative flex min-h-0 max-h-full flex-1 flex-col justify-center overflow-y-auto overflow-x-hidden py-1 pr-0.5"
+              aria-label="Combinaisons posées"
+            >
+              <MeldsBoard
+                melds={view.melds}
+                players={view.players}
+                mode={view.settings.mode}
+                myTeamId={me?.teamId ?? null}
+                cardWidth={tableCardWidth}
+                compact={compact}
+                affordanceFor={turn.affordanceFor}
+                onActivate={onMeldActivate}
+                freshCardIds={director.freshCardIds}
+                hiddenCardIds={director.pendingCardIds}
+                emptyHint={emptyHint}
+              />
+            </div>
+          );
+
+          if (isCross2v2 && partner2v2 && rivalLeft && rivalRight) {
+            // Vraie disposition en croix : partenaire au-dessus de la table,
+            // adversaires de chaque côté — les deux équipes se voient
+            // immédiatement, sans dépendre d'un simple ordre dans une rangée.
+            return (
+              <div className="flex min-h-0 flex-1 flex-col items-center gap-1.5 px-2 pb-1">
+                {renderSeat(partner2v2)}
+                <div className="flex min-h-0 w-full flex-1 items-center justify-center gap-2">
+                  {renderSeat(rivalLeft)}
+                  <div className="relative mx-auto flex max-h-full w-full max-w-3xl flex-1 items-center gap-2 sm:gap-4">
+                    {felt}
+                    {piles}
+                    {board}
+                  </div>
+                  {renderSeat(rivalRight)}
+                </div>
+              </div>
+            );
+          }
+
+          return (
+            <>
+              {!short && (
+                <div className="flex shrink-0 flex-wrap items-start justify-center gap-1.5 px-2 pb-1">
+                  {opponents.map((player) => renderSeat(player))}
+                </div>
+              )}
+              <div className="flex min-h-0 flex-1 items-center justify-center px-2">
+                <div className="relative mx-auto flex max-h-full w-full max-w-5xl flex-col gap-2 sm:flex-row sm:gap-4">
+                  {felt}
+                  {piles}
+                  {board}
+                  {short && (
+                    <div
+                      className={`relative flex max-h-full shrink-0 flex-col gap-1 overflow-y-auto ${
+                        view.settings.mode === '2v2' ? 'justify-between' : ''
+                      }`}
+                    >
+                      {opponents.map((player) => renderSeat(player, true))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </>
+          );
+        })()}
 
         {/* ------------------------------------------------------- Le bas */}
         <div className="pb-safe shrink-0 px-2 pt-1">
