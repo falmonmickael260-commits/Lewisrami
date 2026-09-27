@@ -51,14 +51,24 @@ const SHORT_SCREEN = 540;
  * paysage — doit aussi rétrécir, sinon le tapis ne tient plus entre les sièges
  * et la main.
  */
-function meldCardWidth(size: { width: number; height: number }): number {
-  if (size.width === 0) return 50;
-  if (size.height < SHORT_SCREEN) return 38;
-  if (size.width < 400) return 40;
-  if (size.width < 640) return 46;
-  if (size.width < 900) return 54;
-  if (size.width < 1280) return 60;
-  return 68;
+function meldCardWidth(size: { width: number; height: number }, laidCount: number): number {
+  let base: number;
+  if (size.width === 0) base = 50;
+  else if (size.height < SHORT_SCREEN) base = 38;
+  else if (size.width < 400) base = 40;
+  else if (size.width < 640) base = 46;
+  else if (size.width < 900) base = 54;
+  else if (size.width < 1280) base = 60;
+  else base = 68;
+
+  // À plusieurs joueurs, le tapis peut vite compter 20-30 cartes posées : sans
+  // ça, tout ne tient plus à l'écran et il faut faire défiler pour voir les
+  // combinaisons des autres — l'objectif est justement de toutes les voir
+  // d'un coup.
+  if (laidCount > 28) return Math.round(base * 0.62);
+  if (laidCount > 20) return Math.round(base * 0.74);
+  if (laidCount > 12) return Math.round(base * 0.86);
+  return base;
 }
 
 function pileCardWidth(size: { width: number; height: number }): number {
@@ -127,7 +137,14 @@ export function RamiTable({
 
   const short = size.height > 0 && size.height < SHORT_SCREEN;
   const compact = size.width > 0 && (size.width < 700 || short);
-  const tableCardWidth = useMemo(() => meldCardWidth(size), [size]);
+  const laidCardCount = useMemo(
+    () => view?.melds.reduce((sum, meld) => sum + meld.slots.length, 0) ?? 0,
+    [view?.melds],
+  );
+  const tableCardWidth = useMemo(
+    () => meldCardWidth(size, laidCardCount),
+    [size, laidCardCount],
+  );
   const pileWidth = useMemo(() => pileCardWidth(size), [size]);
   const handWidth = useMemo(() => handMaxCard(size, compact), [size, compact]);
 

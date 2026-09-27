@@ -260,22 +260,29 @@ export function RamiHandFan({
         </>
       )}
       {dragOverIndex !== null && layout.slots[dragOverIndex] && (
-        // Repère de dépose : pendant qu'on glisse une carte, on voit tout de
-        // suite où elle ira une fois relâchée, avant même de la lâcher.
+        // Repère de dépose : la forme d'une carte, pas un simple trait — pour
+        // qu'on comprenne immédiatement « elle ira ici », même en plein geste.
         <motion.div
           aria-hidden="true"
-          className="pointer-events-none absolute rounded-full bg-gold-300"
+          className="pointer-events-none absolute rounded-[7%] border-[3px] border-dashed border-gold-300"
           style={{
             left: '50%',
-            bottom: bottomInset - cardHeight * 0.08,
-            width: Math.max(3, cardWidth * 0.05),
-            height: cardHeight * 1.12,
+            bottom: bottomInset,
+            width: cardWidth,
+            height: cardHeight,
             zIndex: 998,
-            boxShadow: '0 0 16px 4px rgba(236,208,138,0.85)',
+            background: 'rgba(236,208,138,0.22)',
+            boxShadow: '0 0 26px 8px rgba(236,208,138,0.65)',
           }}
           initial={false}
-          animate={{ marginLeft: layout.slots[dragOverIndex].x - cardWidth / 2 - 6 }}
-          transition={{ type: 'spring', stiffness: 500, damping: 34 }}
+          animate={{
+            marginLeft: layout.slots[dragOverIndex].x - cardWidth / 2,
+            scale: [1, 1.06, 1],
+          }}
+          transition={{
+            marginLeft: { type: 'spring', stiffness: 500, damping: 34 },
+            scale: { duration: 0.7, repeat: Infinity, ease: 'easeInOut' },
+          }}
         />
       )}
       {autoGroupBoxes.map((box) => {
