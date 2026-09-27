@@ -12,7 +12,31 @@
  */
 
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const key = process.env.SUPABASE_SERVICE_ROLE_KEY ?? process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+/**
+ * Clé **secrète** uniquement.
+ *
+ * Les tables contiennent les mains des joueurs : le schéma active RLS sans
+ * aucune policy publique. Une clé publique (`anon` / `publishable`) verrait
+ * donc toutes ses requêtes refusées — et, pire, l'autoriser exposerait les
+ * mains à quiconque lit le code du navigateur. On refuse explicitement plutôt
+ * que d'échouer en silence à chaque écriture.
+ *
+ * Supabase a renommé ses clés : `service_role` est devenue `sb_secret_…`.
+ * Les deux noms de variable sont acceptés.
+ */
+const key = process.env.SUPABASE_SECRET_KEY ?? process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+const publicKeyOnly =
+  !key &&
+  Boolean(process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY);
+
+if (url && publicKeyOnly) {
+  console.warn(
+    '[persistance] Supabase est configuré avec une clé publique : la persistance reste ' +
+      'désactivée. Renseignez SUPABASE_SECRET_KEY (clé « secret » / « service_role »).',
+  );
+}
 
 export const persistenceEnabled = Boolean(url && key);
 
