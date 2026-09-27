@@ -48,6 +48,10 @@ export async function POST(
   const error = handle(room, playerId, action, body);
   if (error) return jsonError(error, 400);
 
+  // La salle doit être persistée avant la réponse : sinon, sur un hébergeur
+  // sans serveur, la requête suivante ne la retrouverait pas.
+  await ramiStore.flush(room);
+
   return Response.json({ ok: true, view: ramiStore.buildView(room, playerId) });
 }
 

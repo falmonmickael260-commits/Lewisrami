@@ -52,7 +52,9 @@ export function computeFanLayout(
   const rad = (maxAngle * Math.PI) / 180;
 
   const sweep = (2 * Math.sin(rad)) / CARD_RATIO - (1 - Math.cos(rad));
-  const target = options.compact ? 0.34 : 0.44;
+  // Sur mobile, on préfère des cartes lisibles très chevauchées à des
+  // cartes minuscules toutes visibles.
+  const target = options.compact ? 0.3 : 0.42;
 
   let overlap = target;
   let cardWidth =

@@ -51,22 +51,22 @@ const SHORT_SCREEN = 540;
  * et la main.
  */
 function meldCardWidth(size: { width: number; height: number }): number {
-  if (size.width === 0) return 52;
-  if (size.height < SHORT_SCREEN) return 38;
-  if (size.width < 400) return 40;
-  if (size.width < 640) return 46;
-  if (size.width < 900) return 54;
-  if (size.width < 1280) return 60;
-  return 66;
+  if (size.width === 0) return 60;
+  if (size.height < SHORT_SCREEN) return 44;
+  if (size.width < 400) return 46;
+  if (size.width < 640) return 54;
+  if (size.width < 900) return 64;
+  if (size.width < 1280) return 72;
+  return 82;
 }
 
 function pileCardWidth(size: { width: number; height: number }): number {
-  if (size.width === 0) return 68;
-  if (size.height < SHORT_SCREEN) return 50;
-  if (size.width < 400) return 58;
-  if (size.width < 640) return 66;
-  if (size.width < 900) return 76;
-  return 88;
+  if (size.width === 0) return 78;
+  if (size.height < SHORT_SCREEN) return 56;
+  if (size.width < 400) return 66;
+  if (size.width < 640) return 76;
+  if (size.width < 900) return 88;
+  return 104;
 }
 
 /**
@@ -76,10 +76,11 @@ function pileCardWidth(size: { width: number; height: number }): number {
  * de quinze cartes mangerait plus de la moitié d'un écran de 390 px de haut.
  */
 function handMaxCard(size: { width: number; height: number }, compact: boolean): number {
-  const base = compact ? 88 : 104;
+  const base = compact ? 118 : 136;
   if (size.height === 0) return base;
-  const factor = size.height < 460 ? 0.16 : 0.18;
-  return Math.max(44, Math.min(base, Math.round(size.height * factor)));
+  // Sur un écran bas, la main doit laisser vivre le tapis : on plafonne plus tôt.
+  const factor = size.height < 460 ? 0.17 : 0.23;
+  return Math.max(46, Math.min(base, Math.round(size.height * factor)));
 }
 
 /**
@@ -565,6 +566,7 @@ export function RamiTable({
             <RamiHandFan
               cards={hand.cards}
               selectedIds={turn.selected}
+              selectionValid={turn.selectionHint.valid}
               reservedIds={turn.reservedIds}
               pinnedId={view.hints.mustUseTakenCard ? (view.turn?.takenCardId ?? null) : null}
               onToggle={turn.toggle}

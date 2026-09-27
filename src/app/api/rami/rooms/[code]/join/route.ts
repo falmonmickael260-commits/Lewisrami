@@ -20,6 +20,8 @@ export async function POST(
   const joined = ramiStore.joinRoom(room, name, sanitizeAvatar(body.avatar));
   if (!joined.ok) return jsonError(joined.error, 409);
 
+  await ramiStore.flush(room);
+
   return Response.json({
     code: room.code,
     token: joined.token,

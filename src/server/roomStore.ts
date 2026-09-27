@@ -99,6 +99,15 @@ export interface Room<S, V, E> {
   timer: ReturnType<typeof setTimeout> | null;
   botTimer: ReturnType<typeof setTimeout> | null;
   dropTimers: Map<string, ReturnType<typeof setTimeout>>;
+  /**
+   * Dernière écriture de persistance en cours.
+   *
+   * Sur un hébergeur sans serveur, la fonction peut se figer dès la réponse
+   * envoyée : une écriture lancée sans être attendue n'arrive jamais, et la
+   * salle est introuvable à la requête suivante. Les routes attendent donc
+   * cette promesse avant de répondre.
+   */
+  pendingSave: Promise<void> | null;
 }
 
 /* ------------------------------------------------------------------ */
@@ -184,6 +193,7 @@ export function createRoomStore<S, A, E, V>(adapter: GameAdapter<S, A, E, V>) {
       timer: null,
       botTimer: null,
       dropTimers: new Map(),
+      pendingSave: null,
     };
     registry.rooms.set(code, room);
     return room;
@@ -208,6 +218,7 @@ export function createRoomStore<S, A, E, V>(adapter: GameAdapter<S, A, E, V>) {
       timer: null,
       botTimer: null,
       dropTimers: new Map(),
+      pendingSave: null,
     };
     // Après une restauration, tout le monde est réputé déconnecté sauf les bots.
     for (const player of adapter.players(room.state)) {
@@ -256,7 +267,19 @@ export function createRoomStore<S, A, E, V>(adapter: GameAdapter<S, A, E, V>) {
     room.updatedAt = Date.now();
     broadcast(room, stamped);
     schedule(room);
-    void persistence.save(room.code, room.state, Object.fromEntries(room.tokens));
+    room.pendingSave = persistence.save(
+      room.code,
+      room.state,
+      Object.fromEntries(room.tokens),
+    );
+  }
+
+  /** Attend que la salle soit bien écrite avant de répondre au client. */
+  async function flush(room: Room<S, V, E>): Promise<void> {
+    const pending = room.pendingSave;
+    if (!pending) return;
+    await pending;
+    if (room.pendingSave === pending) room.pendingSave = null;
   }
 
   function dispatch(room: Room<S, V, E>, action: A): E[] {
@@ -493,6 +516,7 @@ export function createRoomStore<S, A, E, V>(adapter: GameAdapter<S, A, E, V>) {
     canStart,
     attach,
     detach,
+    flush,
     probe,
     buildView: (room: Room<S, V, E>, viewerId: string | null) =>
       adapter.buildView(room.state, viewerId, Date.now()),

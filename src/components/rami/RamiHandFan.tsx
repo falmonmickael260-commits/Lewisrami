@@ -27,6 +27,8 @@ interface RamiHandFanProps {
   onDrop?: (cardId: CardId, point: { x: number; y: number }) => boolean;
   /** Le joueur range sa main : la carte va à cette place. */
   onReorder?: (cardId: CardId, toIndex: number) => void;
+  /** La sélection courante forme une combinaison valide. */
+  selectionValid?: boolean;
   /** Largeur disponible, en pixels. */
   width: number;
   compact: boolean;
@@ -50,6 +52,7 @@ interface RamiHandFanProps {
 export function RamiHandFan({
   cards,
   selectedIds,
+  selectionValid = false,
   reservedIds,
   pinnedId,
   onToggle,
@@ -68,8 +71,9 @@ export function RamiHandFan({
     () =>
       computeFanLayout(cards.length, width, {
         compact,
-        maxCard: maxCardWidth ?? (compact ? 88 : 104),
-        minCard: Math.min(compact ? 46 : 62, maxCardWidth ?? 999),
+        maxCard: maxCardWidth ?? (compact ? 104 : 136),
+        // Plancher de lisibilité : en dessous, une carte ne se lit plus au doigt.
+        minCard: Math.min(compact ? 72 : 78, maxCardWidth ?? 999),
       }),
     [cards.length, width, compact, maxCardWidth],
   );
@@ -147,7 +151,7 @@ export function RamiHandFan({
           if (selectedIndex === index) return sum;
           const distance = index - selectedIndex;
           if (Math.abs(distance) > 2) return sum;
-          return sum + (Math.sign(distance) * (cardWidth * 0.1)) / Math.abs(distance);
+          return sum + (Math.sign(distance) * (cardWidth * 0.2)) / Math.abs(distance);
         }, 0);
 
         const lifted = isSelected || isReserved;
@@ -177,15 +181,17 @@ export function RamiHandFan({
               height: cardHeight,
               bottom: bottomInset,
               marginLeft: -cardWidth / 2,
-              zIndex: lifted ? 200 + index : index,
+              // Une carte sélectionnée passe toujours devant ses voisines :
+              // elle ne doit jamais rester à moitié cachée.
+              zIndex: isSelected ? 600 + index : isReserved ? 300 + index : index,
               borderRadius: '7%',
             }}
             initial={false}
             animate={{
               x: slot.x + neighbourPush,
-              y: slot.y - (lifted ? cardHeight * 0.26 : 0),
-              rotate: slot.rotate * (lifted ? 0.25 : 1),
-              scale: isSelected ? 1.07 : isReserved ? 1.02 : 1,
+              y: slot.y - (isSelected ? cardHeight * 0.34 : isReserved ? cardHeight * 0.2 : 0),
+              rotate: slot.rotate * (lifted ? 0.18 : 1),
+              scale: isSelected ? 1.12 : isReserved ? 1.03 : 1,
             }}
             transition={
               reducedMotion
@@ -255,11 +261,16 @@ export function RamiHandFan({
                 />
 
                 {isSelected && (
+                  // Vert dès que la sélection forme une combinaison licite :
+                  // le joueur le voit avant même de cliquer sur « Préparer ».
                   <span
-                    className="pointer-events-none absolute -inset-[2px] rounded-[8.5%] ring-[2.5px] ring-gold-300"
+                    className={`pointer-events-none absolute -inset-[2px] rounded-[8.5%] ring-[3px] ${
+                      selectionValid ? 'ring-emerald-300' : 'ring-gold-300'
+                    }`}
                     style={{
-                      boxShadow:
-                        '0 0 0 1px rgba(10,20,14,0.55), 0 0 26px 2px rgba(236,208,138,0.55)',
+                      boxShadow: selectionValid
+                        ? '0 0 0 1px rgba(10,20,14,0.55), 0 0 30px 4px rgba(94,231,171,0.7)'
+                        : '0 0 0 1px rgba(10,20,14,0.55), 0 0 26px 2px rgba(236,208,138,0.55)',
                     }}
                   />
                 )}
