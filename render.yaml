@@ -19,9 +19,17 @@ services:
     envVars:
       - key: NODE_ENV
         value: production
-      # Persistance optionnelle : les salles survivent à un redéploiement.
-      # À renseigner dans l'onglet « Environment » de Render.
-      - key: NEXT_PUBLIC_SUPABASE_URL
-        sync: false
-      - key: SUPABASE_SERVICE_ROLE_KEY
-        sync: false
+      # Rien d'autre à renseigner : le jeu fonctionne tel quel.
+      #
+      # La persistance Supabase est FACULTATIVE. Elle ne sert qu'à faire
+      # survivre les salles à un redémarrage du serveur — utile en plan
+      # gratuit, où le service s'endort après 15 min sans joueur.
+      # Pour l'activer plus tard, ajouter ces deux variables depuis
+      # l'onglet « Environment » du service, sans toucher à ce fichier :
+      #
+      #   NEXT_PUBLIC_SUPABASE_URL   = https://xxxx.supabase.co
+      #   SUPABASE_SERVICE_ROLE_KEY  = clé « secret » (jamais la publique)
+      #
+      # Elles ne sont pas déclarées ici exprès : déclarées, Render les
+      # réclame au moment de créer le service, et bloque celui qui ne les
+      # a pas encore.
