@@ -135,29 +135,62 @@ export function GameOverSheet({
                         {members.map((player) => `${player.avatar} ${player.name}`).join(' · ')}
                       </p>
                     </div>
-                    <span
-                      className={`text-2xl font-bold tabular-nums ${
-                        lost ? 'text-ruby-400' : 'text-cream'
-                      }`}
-                    >
-                      {team.score}
-                    </span>
+                    <div className="shrink-0 text-right">
+                      <span
+                        className={`block text-2xl font-bold leading-none tabular-nums ${
+                          lost ? 'text-ruby-400' : 'text-cream'
+                        }`}
+                      >
+                        {team.score}
+                      </span>
+                      <span className="block text-[0.62rem] text-cream/40">
+                        {team.roundsWon} manche{team.roundsWon > 1 ? 's' : ''}
+                      </span>
+                    </div>
                   </motion.div>
                 );
               })}
             </div>
 
             <motion.div
-              className="mt-4 rounded-2xl border border-white/10 bg-white/[0.03] px-3 py-2.5 text-center"
+              className="mt-4 grid grid-cols-3 gap-2"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ delay: 0.6 }}
             >
-              <p className="text-[0.7rem] text-cream/50">
-                Cible : <span className="font-semibold text-cream/80">{view.settings.targetScore}</span>{' '}
-                points. La première équipe à l’atteindre perd la partie.
-              </p>
+              {[
+                { label: 'Manches', value: String(outcome.rounds) },
+                { label: 'Cible', value: String(view.settings.targetScore) },
+                {
+                  label: 'Écart',
+                  value: String(
+                    Math.max(...view.teams.map((team) => team.score)) -
+                      Math.min(...view.teams.map((team) => team.score)),
+                  ),
+                },
+              ].map((stat) => (
+                <div
+                  key={stat.label}
+                  className="rounded-2xl border border-white/10 bg-white/[0.03] px-2 py-2.5 text-center"
+                >
+                  <span className="block text-lg font-bold tabular-nums text-cream">
+                    {stat.value}
+                  </span>
+                  <span className="block text-[0.6rem] font-semibold uppercase tracking-[0.12em] text-cream/40">
+                    {stat.label}
+                  </span>
+                </div>
+              ))}
             </motion.div>
+
+            <motion.p
+              className="mt-2 text-center text-[0.7rem] text-cream/45"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.66 }}
+            >
+              La première équipe à atteindre {view.settings.targetScore} points perd la partie.
+            </motion.p>
 
             <motion.div
               className="mt-5 flex flex-col gap-2 sm:flex-row"

@@ -137,6 +137,8 @@ export interface Team {
   id: number;
   /** Score cumulé. Atteindre ou dépasser la cible fait **perdre**. */
   score: number;
+  /** Manches remportées, pour les statistiques de fin de partie. */
+  roundsWon: number;
   opening: TeamOpening;
 }
 

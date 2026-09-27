@@ -1,7 +1,7 @@
 'use client';
 
-import { motion } from 'framer-motion';
-import { useMemo } from 'react';
+import { motion, type PanInfo } from 'framer-motion';
+import { useCallback, useMemo, useRef } from 'react';
 import { cardLabel } from '@/rami/cards';
 import type { CardId, RamiCard } from '@/rami/types';
 import { RamiPlayingCard } from '@/components/ramicard/RamiPlayingCard';
@@ -16,6 +16,12 @@ interface RamiHandFanProps {
   /** Carte reprise dans la défausse : elle doit servir avant la défausse. */
   pinnedId: CardId | null;
   onToggle: (cardId: CardId) => void;
+  /**
+   * Carte lâchée quelque part sur la table.
+   * Le point est en coordonnées viewport : c'est la table qui décide de la
+   * cible, puisqu'elle seule connaît les ancres.
+   */
+  onDrop?: (cardId: CardId, point: { x: number; y: number }) => void;
   /** Largeur disponible, en pixels. */
   width: number;
   compact: boolean;
@@ -40,6 +46,7 @@ export function RamiHandFan({
   reservedIds,
   pinnedId,
   onToggle,
+  onDrop,
   width,
   compact,
   interactive,
@@ -69,6 +76,21 @@ export function RamiHandFan({
   );
 
   const stagger = reducedMotion ? 0 : dealStagger;
+
+  // Un glissement ne doit pas se terminer par une sélection : on retient qu'un
+  // geste a eu lieu, et le clic qui suit le relâchement est ignoré.
+  const draggedRef = useRef(false);
+
+  const handleDragEnd = useCallback(
+    (cardId: CardId, info: PanInfo) => {
+      onDrop?.(cardId, info.point);
+      // Le clic de fin de geste part juste après : on libère au tour suivant.
+      setTimeout(() => {
+        draggedRef.current = false;
+      }, 0);
+    },
+    [onDrop],
+  );
 
   return (
     <div
@@ -110,7 +132,10 @@ export function RamiHandFan({
             ]
               .filter(Boolean)
               .join(', ')}
-            onClick={() => onToggle(card.id)}
+            onClick={() => {
+              if (draggedRef.current) return;
+              onToggle(card.id);
+            }}
             className="absolute left-1/2 top-auto origin-bottom will-animate no-select disabled:cursor-default"
             style={{
               width: cardWidth,
@@ -142,6 +167,22 @@ export function RamiHandFan({
             }
             whileTap={interactive && !isReserved ? { scale: isSelected ? 1.03 : 0.98 } : undefined}
           >
+            {/* Couche de préhension : le glisser-déposer vit seul ici.
+                Mêlé à la couche de placement, il entrerait en conflit avec
+                l'animation de position de la carte. */}
+            <motion.div
+              className="h-full w-full will-animate"
+              drag={interactive && !isReserved && Boolean(onDrop)}
+              dragSnapToOrigin
+              dragMomentum={false}
+              dragElastic={0.14}
+              onDragStart={() => {
+                draggedRef.current = true;
+              }}
+              onDragEnd={(_, info) => handleDragEnd(card.id, info)}
+              whileDrag={{ scale: 1.14, zIndex: 999, cursor: 'grabbing' }}
+              transition={{ type: 'spring', stiffness: 420, damping: 32 }}
+            >
             {/* Couche d'arrivée : la carte vient de la pioche à la distribution.
                 Séparée de la couche de placement pour que le délai de
                 distribution ne retarde jamais la réaction à la sélection. */}
@@ -199,6 +240,7 @@ export function RamiHandFan({
                   style={{ boxShadow: '0 0 22px -4px rgba(242,96,106,0.7)' }}
                 />
               )}
+            </motion.div>
             </motion.div>
           </motion.button>
         );

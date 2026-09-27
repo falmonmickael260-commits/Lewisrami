@@ -1,4 +1,7 @@
-# Déployer Le Président
+# Déployer les jeux de cartes
+
+Une seule application sert les deux jeux : le **Rami** (`/rami`) et le
+**Président** (`/president`), avec une page de choix à la racine.
 
 ## Contrainte d'architecture à connaître
 
@@ -14,15 +17,15 @@ persistant**.
 Si un déploiement Vercel est indispensable, il faut au préalable déplacer
 l'état et la diffusion vers un service partagé (Postgres + Realtime, ou
 Durable Objects) — ce n'est pas une variable d'environnement à changer, c'est
-une réécriture de `src/server/store.ts`.
+une réécriture de `src/server/roomStore.ts`, partagé par les deux jeux.
 
 ---
 
 ## Option 1 — Render (la plus simple, aucun jeton à créer)
 
 1. [dashboard.render.com](https://dashboard.render.com) → **New +** → **Blueprint**
-2. Choisir le dépôt `falmonmickael260-commits/presidente`, branche
-   `claude/le-president-online-build-wnuqaj`
+2. Choisir le dépôt `falmonmickael260-commits/presidente` et la branche à
+   déployer
 3. Render lit `render.yaml`, construit le `Dockerfile` et déploie
 4. (Optionnel) Onglet **Environment** → ajouter les deux variables Supabase
 
@@ -40,11 +43,11 @@ fly deploy
 ## Option 3 — Docker, n'importe où
 
 ```bash
-docker build -t le-president .
+docker build -t jeux-de-cartes .
 docker run -p 3000:3000 \
   -e NEXT_PUBLIC_SUPABASE_URL=https://xxxx.supabase.co \
   -e SUPABASE_SERVICE_ROLE_KEY=... \
-  le-president
+  jeux-de-cartes
 ```
 
 ## Option 4 — sans conteneur
@@ -84,6 +87,11 @@ dépôt.
 > se retrouver dans le navigateur, dans un commit, ni dans une conversation.
 > Si elle a fuité : Dashboard → Project Settings → API → **Generate new key**.
 
-La table `rooms` contient les mains des joueurs : le schéma fourni active RLS
-sans aucune policy publique, elle est donc inaccessible depuis le navigateur.
-Seul le serveur y accède, avec la clé `service_role`.
+Les tables `president_rooms` et `rami_rooms` contiennent les mains des joueurs :
+le schéma fourni active RLS sans aucune policy publique, elles sont donc
+inaccessibles depuis le navigateur. Seul le serveur y accède, avec la clé
+`service_role`.
+
+> Une installation antérieure stockait les salles du Président dans une table
+> `rooms`. Le schéma la recopie automatiquement vers `president_rooms` : il n'y
+> a rien à faire de plus.

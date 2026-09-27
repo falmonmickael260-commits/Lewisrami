@@ -14,7 +14,11 @@ export function RamiNotices({ notices }: { notices: Notice[] }) {
   return (
     <div
       className="pointer-events-none fixed inset-x-0 z-50 flex flex-col items-center gap-1.5 px-4"
-      style={{ top: 'calc(max(env(safe-area-inset-top), 0.5rem) + 3.9rem)' }}
+      // Sous la barre du haut **et** sous la rangée des sièges : une annonce
+      // ne doit jamais masquer le joueur dont c'est le tour.
+      style={{
+        top: 'calc(max(env(safe-area-inset-top), 0.5rem) + var(--table-top-bar, 3.6rem) + 3.6rem)',
+      }}
       role="log"
       aria-live="polite"
     >

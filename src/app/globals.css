@@ -151,6 +151,20 @@
     color: transparent;
   }
 
+  /* Hauteur de la barre du haut d'une table.
+     Sur mobile elle passe à deux rangées — titre et boutons, puis les scores —
+     sinon les noms d'équipe seraient rognés. Le contenu et les annonces s'y
+     réfèrent par cette variable plutôt que par une constante dupliquée. */
+  .rami-table {
+    --table-top-bar: 5.3rem;
+  }
+
+  @media (min-width: 640px) {
+    .rami-table {
+      --table-top-bar: 3.6rem;
+    }
+  }
+
   /* Le conteneur des cartes : la 3D vit ici, pas sur chaque carte. */
   .stage-3d {
     perspective: 1400px;

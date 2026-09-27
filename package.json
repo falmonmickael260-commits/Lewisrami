@@ -1,8 +1,8 @@
 {
-  "name": "le-president-online",
+  "name": "jeux-de-cartes-en-ligne",
   "version": "1.0.0",
   "private": true,
-  "description": "Le Président — jeu de cartes multijoueur temps réel, premium.",
+  "description": "Rami et Le Président — jeux de cartes multijoueur temps réel, premium.",
   "scripts": {
     "dev": "next dev",
     "build": "next build",

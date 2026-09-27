@@ -144,6 +144,7 @@ export function makeTable(options: TableOptions): RamiState {
       return {
         ...team,
         score: options.teamScores?.[team.id] ?? 0,
+        roundsWon: team.roundsWon,
         opening:
           opening === undefined
             ? team.opening

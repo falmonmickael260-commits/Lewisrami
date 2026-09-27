@@ -164,16 +164,30 @@ export function RamiLobby({
                   className="flex items-center gap-3 rounded-2xl border px-3 py-2.5"
                   style={{ borderColor: style.border, background: style.surface }}
                 >
-                  <span
-                    className="grid h-10 w-10 shrink-0 place-items-center rounded-full text-lg"
-                    style={{
-                      background:
-                        'radial-gradient(circle at 35% 25%, rgba(255,255,255,0.16), rgba(0,0,0,0.35))',
-                      border: `1px solid ${style.border}`,
-                    }}
-                    aria-hidden="true"
-                  >
-                    {player.avatar}
+                  <span className="relative shrink-0">
+                    <span
+                      className={`grid h-10 w-10 place-items-center rounded-full text-lg ${
+                        player.connected ? '' : 'opacity-45 grayscale'
+                      }`}
+                      style={{
+                        background:
+                          'radial-gradient(circle at 35% 25%, rgba(255,255,255,0.16), rgba(0,0,0,0.35))',
+                        border: `1px solid ${style.border}`,
+                      }}
+                      aria-hidden="true"
+                    >
+                      {player.avatar}
+                    </span>
+                    {/* Pastille de présence : un joueur hors ligne ne doit pas
+                        se confondre avec une place occupée et prête. */}
+                    <span
+                      className={`absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-ink-950 ${
+                        player.connected ? 'bg-emerald-400' : 'bg-ruby-500'
+                      }`}
+                      title={player.connected ? 'En ligne' : 'Hors ligne'}
+                      aria-label={player.connected ? 'en ligne' : 'hors ligne'}
+                      role="img"
+                    />
                   </span>
                   <span className="min-w-0 flex-1">
                     <span className="flex items-center gap-1.5">

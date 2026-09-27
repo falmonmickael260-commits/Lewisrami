@@ -6,7 +6,7 @@
 # répartiraient les joueurs d'une même salle sur des processus différents.
 services:
   - type: web
-    name: le-president
+    name: jeux-de-cartes
     runtime: docker
     dockerfilePath: ./Dockerfile
     plan: starter

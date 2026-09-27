@@ -138,7 +138,12 @@ export function syncTeams(state: RamiState): RamiState {
   for (let id = 0; id < count; id++) {
     const existing = state.teams.find((team) => team.id === id);
     teams.push(
-      existing ?? { id, score: 0, opening: { opened: false, score: 0, byId: null } },
+      existing ?? {
+        id,
+        score: 0,
+        roundsWon: 0,
+        opening: { opened: false, score: 0, byId: null },
+      },
     );
   }
   const players = state.players.map((player) => ({
@@ -276,6 +281,7 @@ export function startRound(state: RamiState, now: number): ReduceResult {
   const teams: Team[] = state.teams.map((team) => ({
     id: team.id,
     score: isFirstRound ? 0 : team.score,
+    roundsWon: isFirstRound ? 0 : team.roundsWon,
     opening: { opened: false, score: 0, byId: null },
   }));
 
@@ -696,6 +702,7 @@ function endRound(
   const teams = state.teams.map((team) => ({
     ...team,
     score: totalByTeam.get(team.id) ?? team.score,
+    roundsWon: team.roundsWon + (team.id === summary.winnerTeamId ? 1 : 0),
   }));
 
   const isOver = summary.bustedTeamIds.length > 0;

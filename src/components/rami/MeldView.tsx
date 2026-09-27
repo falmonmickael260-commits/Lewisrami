@@ -2,7 +2,7 @@
 
 import { memo, useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { describeTarget, shortLabel } from '@/rami/cards';
+import { describeTarget, rankLabel, shortLabel } from '@/rami/cards';
 import { describeJokerRequirement, meldLabel, meldPoints } from '@/rami/melds';
 import type { Meld } from '@/rami/types';
 import { RamiPlayingCard } from '@/components/ramicard/RamiPlayingCard';
@@ -49,9 +49,14 @@ function MeldViewBase({
 }: MeldViewProps) {
   const { bind } = useAnchors();
   const style = teamStyle(meld.teamId);
-  const overlap = compact ? 0.42 : 0.5;
+  // Une combinaison courte s'étale : les cartes restent lisibles. Une tierce de
+  // dix cartes se resserre, sinon elle ne tiendrait pas sur un téléphone.
+  const dense = meld.slots.length > 5;
+  const overlap = dense ? (compact ? 0.42 : 0.5) : compact ? 0.62 : 0.68;
   const step = cardWidth * overlap;
   const height = cardWidth / (250 / 350);
+  const jokerIndex = meld.slots.findIndex((slot) => slot.card.joker);
+  const jokerSlot = jokerIndex >= 0 ? meld.slots[jokerIndex] : null;
 
   const points = useMemo(() => meldPoints(meld), [meld]);
   const label = useMemo(() => meldLabel(meld), [meld]);
@@ -77,7 +82,8 @@ function MeldViewBase({
           : label
       }
       className={[
-        'relative rounded-2xl border px-2.5 pb-2 pt-1.5 text-left transition-colors',
+        'relative rounded-2xl border px-2.5 pt-1.5 text-left transition-colors',
+        jokerSlot ? 'pb-5' : 'pb-2',
         interactive ? 'cursor-pointer' : 'cursor-default',
         affordance === 'blocked' ? 'opacity-45 saturate-50' : '',
       ].join(' ')}
@@ -120,26 +126,33 @@ function MeldViewBase({
               transition={{ type: 'spring', stiffness: 400, damping: 28 }}
             >
               <RamiPlayingCard card={slot.card} width={cardWidth} elevation="rest" />
-              {slot.card.joker && slot.jokerRole && (
-                <span
-                  className="pointer-events-none absolute -bottom-1 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full border border-gold-500/50 bg-ink-950/90 px-1.5 py-[1px] text-[0.52rem] font-bold uppercase tracking-wider text-gold-300"
-                  title={`Ce joker représente ${describeTarget(slot.jokerRole.rank, slot.jokerRole.suit)}`}
-                >
-                  ={' '}
-                  {slot.jokerRole.suit
-                    ? shortLabel({
-                        id: '',
-                        rank: slot.jokerRole.rank,
-                        suit: slot.jokerRole.suit,
-                        joker: false,
-                        deck: 0,
-                      })
-                    : describeTarget(slot.jokerRole.rank, null)}
-                </span>
-              )}
             </motion.div>
           );
         })}
+
+        {/* Ce que représente le joker, dessiné **après** les cartes : chaque
+            carte crée son propre plan, une étiquette posée dessus passerait
+            sous la carte suivante. */}
+        {jokerSlot?.jokerRole && (
+          <span
+            className="pointer-events-none absolute whitespace-nowrap rounded-full border border-gold-500/55 bg-ink-950/92 px-1.5 py-[1px] text-[0.54rem] font-bold uppercase tracking-wider text-gold-300"
+            style={{ left: jokerIndex * step, bottom: -11, zIndex: meld.slots.length + 5 }}
+            title={`Ce joker représente ${describeTarget(jokerSlot.jokerRole.rank, jokerSlot.jokerRole.suit)}`}
+          >
+            {/* Dans une tierce le joker vaut une carte précise (♦V) ; dans un
+                brelan seule la valeur est fixée, l'enseigne reste ouverte. */}
+            ={' '}
+            {jokerSlot.jokerRole.suit
+              ? shortLabel({
+                  id: '',
+                  rank: jokerSlot.jokerRole.rank,
+                  suit: jokerSlot.jokerRole.suit,
+                  joker: false,
+                  deck: 0,
+                })
+              : rankLabel(jokerSlot.jokerRole.rank)}
+          </span>
+        )}
       </div>
 
       {affordance === 'reclaim' && jokerHint && (

@@ -25,7 +25,7 @@ export function RamiTopBar({ view, status, onRules, onMenu }: RamiTopBarProps) {
 
   return (
     <header className="pt-safe pointer-events-none fixed inset-x-0 top-0 z-40 px-2.5">
-      <div className="panel pointer-events-auto mx-auto flex max-w-5xl items-center gap-2 rounded-2xl px-2.5 py-1.5">
+      <div className="panel pointer-events-auto mx-auto flex max-w-5xl flex-wrap items-center gap-x-2 gap-y-1 rounded-2xl px-2.5 py-1.5">
         <div className="flex min-w-0 shrink-0 flex-col leading-tight">
           <span className="text-[0.58rem] font-bold uppercase tracking-[0.16em] text-gold-500/70">
             Rami · {MODE_LABELS[view.settings.mode]}
@@ -38,7 +38,7 @@ export function RamiTopBar({ view, status, onRules, onMenu }: RamiTopBarProps) {
           </span>
         </div>
 
-        <div className="flex min-w-0 flex-1 items-center justify-center gap-1.5 overflow-x-auto">
+        <div className="order-last flex w-full min-w-0 items-center gap-1.5 overflow-x-auto sm:order-none sm:w-auto sm:flex-1 sm:justify-center">
           {view.teams.map((team) => {
             const style = teamStyle(team.id);
             const mine = me?.teamId === team.id;
@@ -92,7 +92,7 @@ export function RamiTopBar({ view, status, onRules, onMenu }: RamiTopBarProps) {
           })}
         </div>
 
-        <div className="flex shrink-0 items-center gap-1">
+        <div className="ml-auto flex shrink-0 items-center gap-1 sm:ml-0">
           {status !== 'live' && (
             <span
               className="rounded-full bg-ruby-500/20 px-2 py-0.5 text-[0.58rem] font-bold uppercase tracking-wider text-ruby-400"

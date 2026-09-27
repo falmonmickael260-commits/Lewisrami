@@ -9,9 +9,10 @@ import {
   useState,
 } from 'react';
 import { AnimatePresence, useReducedMotion } from 'framer-motion';
+import { extendMeldWith } from '@/rami/melds';
 import type { Meld, RamiEvent } from '@/rami/types';
 import type { RamiPlayerView } from '@/rami/view';
-import { useAnchors } from '@/components/game/Anchors';
+import { anchorKeys, useAnchors } from '@/components/game/Anchors';
 import { FlightLayer } from '@/components/game/FlightLayer';
 import { ramiFlightCard } from '@/components/card/flightRenderers';
 import { useRamiDirector } from '@/hooks/useRamiDirector';
@@ -187,6 +188,62 @@ export function RamiTable({
     [turn, director, guarded],
   );
 
+  /**
+   * Carte lâchée sur la table.
+   *
+   * Le geste est une commodité : il ne crée aucun droit. La même carte lâchée
+   * sur la défausse ou sur une combinaison passe par les mêmes actions — et
+   * donc par la même validation serveur — que les boutons.
+   */
+  const onDropCard = useCallback(
+    (cardId: string, point: { x: number; y: number }) => {
+      const current = room.view;
+      if (!current || current.phase !== 'playing') return;
+      if (current.currentPlayerId !== current.youId) return;
+      if (current.turn?.stage !== 'meld') return;
+
+      const hits = (key: string, slack = 18) => {
+        const anchor = read(key);
+        if (!anchor) return false;
+        return (
+          Math.abs(point.x - anchor.x) <= anchor.width / 2 + slack &&
+          Math.abs(point.y - anchor.y) <= anchor.height / 2 + slack
+        );
+      };
+
+      // Lâchée sur la défausse : le tour se termine.
+      if (hits(anchorKeys.discard)) {
+        if (current.hints.mustUseTakenCard || turn.groups.length > 0) return;
+        director.captureCards([cardId]);
+        void guarded('discard', { cardId }).then((ok) => {
+          if (ok) turn.clearSelection();
+        });
+        return;
+      }
+
+      // Lâchée sur une combinaison : complément, si elle l'accepte.
+      for (const meld of current.melds) {
+        if (!hits(anchorKeys.meld(meld.id), 8)) continue;
+        const card = current.hand.find((entry) => entry.id === cardId);
+        if (!card) return;
+        if (turn.affordanceFor(meld) === 'none') return;
+        if (!extendMeldWith(meld, [card]).ok) {
+          director.pushNotice(
+            'Cette carte ne complète pas cette combinaison.',
+            'warn',
+          );
+          return;
+        }
+        director.captureCards([cardId]);
+        void guarded('extend_meld', { meldId: meld.id, cardIds: [cardId] }).then((ok) => {
+          if (ok) turn.clearSelection();
+        });
+        return;
+      }
+    },
+    [room.view, read, turn, director, guarded],
+  );
+
   const onNextRound = useCallback(() => void guarded('next_round'), [guarded]);
   const onRestart = useCallback(() => void guarded('restart'), [guarded]);
 
@@ -221,7 +278,7 @@ export function RamiTable({
   return (
     <div
       ref={tableRef}
-      className="felt-surface felt-grain relative flex h-dvh flex-col overflow-hidden"
+      className="rami-table felt-surface felt-grain relative flex h-dvh flex-col overflow-hidden"
     >
       <RamiTopBar
         view={view}
@@ -230,7 +287,7 @@ export function RamiTable({
         onMenu={() => setMenuOpen(true)}
       />
 
-      <div className="flex min-h-0 flex-1 flex-col" style={{ paddingTop: '3.6rem' }}>
+      <div className="flex min-h-0 flex-1 flex-col" style={{ paddingTop: 'var(--table-top-bar)' }}>
         {/* ------------------------------------------------- Adversaires */}
         <div className="flex shrink-0 flex-wrap items-start justify-center gap-1.5 px-2 pb-1">
           {opponents.map((player) => (
@@ -253,8 +310,20 @@ export function RamiTable({
         {/* L'aire de jeu est centrée verticalement : une table vide ne doit pas
             laisser un grand vide entre la pioche et la main. */}
         <div className="flex min-h-0 flex-1 items-center justify-center px-2">
-          <div className="mx-auto flex max-h-full w-full max-w-5xl flex-col gap-2 sm:flex-row sm:gap-4">
-          <div className="flex shrink-0 justify-center sm:items-center">
+          <div className="relative mx-auto flex max-h-full w-full max-w-5xl flex-col gap-2 sm:flex-row sm:gap-4">
+          {/* Incrustation du tapis : ancre visuellement l'aire de jeu, pour
+              qu'une table encore vide ressemble à une table et non à du vide. */}
+          <div
+            aria-hidden="true"
+            className="pointer-events-none absolute -inset-x-3 -inset-y-4 rounded-[2rem] border border-gold-500/10 sm:-inset-x-5 sm:-inset-y-6"
+            style={{
+              background:
+                'radial-gradient(75% 95% at 50% 45%, rgb(255 255 255 / 0.05), transparent 72%)',
+              boxShadow:
+                'inset 0 1px 0 rgb(255 255 255 / 0.05), 0 50px 110px -70px rgb(0 0 0 / 0.95)',
+            }}
+          />
+          <div className="relative flex shrink-0 justify-center sm:items-center">
             <Piles
               stockCount={view.stockCount}
               discardTop={view.discardTop}
@@ -273,7 +342,7 @@ export function RamiTable({
           </div>
 
           <div
-            className="flex min-h-0 max-h-full flex-1 flex-col justify-center overflow-y-auto overflow-x-hidden py-1 pr-0.5"
+            className="relative flex min-h-0 max-h-full flex-1 flex-col justify-center overflow-y-auto overflow-x-hidden py-1 pr-0.5"
             aria-label="Combinaisons posées"
           >
             <MeldsBoard
@@ -342,6 +411,7 @@ export function RamiTable({
               reservedIds={turn.reservedIds}
               pinnedId={view.hints.mustUseTakenCard ? (view.turn?.takenCardId ?? null) : null}
               onToggle={turn.toggle}
+              onDrop={onDropCard}
               width={size.width}
               compact={compact}
               interactive={isMyTurn && !locked && !busy}
