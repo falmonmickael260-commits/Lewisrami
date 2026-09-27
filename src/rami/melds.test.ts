@@ -3,6 +3,7 @@ import {
   buildMeld,
   buildRun,
   buildSet,
+  detectAdjacentGroups,
   extendMeldWith,
   jokerRequirement,
   meldLabel,
@@ -325,6 +326,55 @@ describe('libellés', () => {
     expect(meldLabel(meldFrom('S7 H7 D7', 'set'))).toBe('brelan de sept');
     expect(meldLabel(meldFrom('S7 H7 D7 C7', 'set'))).toBe('carré de sept');
     expect(meldLabel(meldFrom('H5 H6 H7'))).toBe('tierce à cœur, du cinq au sept');
+  });
+});
+
+describe('détection de groupes adjacents (main affichée)', () => {
+  it('détecte une tierce et un brelan déjà côte à côte', () => {
+    const hand = cards('H5 H6 H7 S7 D7 C7');
+    const groups = detectAdjacentGroups(hand, new Set());
+    expect(groups).toHaveLength(2);
+    expect(groups[0]).toMatchObject({ kind: 'run', size: 3 });
+    expect(groups[1]).toMatchObject({ kind: 'set', size: 3 });
+  });
+
+  it('ignore une combinaison valide si ses cartes ne sont pas côte à côte', () => {
+    const hand = cards('H5 C2 H6 C3 H7');
+    expect(detectAdjacentGroups(hand, new Set())).toHaveLength(0);
+  });
+
+  it("n'accepte pas deux cartes de la même enseigne comme brelan", () => {
+    // Deux 7 de cœur (deux jeux) ne remplacent pas deux enseignes différentes.
+    const hand = cards("H7 H7' D7");
+    expect(detectAdjacentGroups(hand, new Set())).toHaveLength(0);
+  });
+
+  it('utilise un joker adjacent pour compléter une tierce', () => {
+    const hand = cards('H5 X H7');
+    const groups = detectAdjacentGroups(hand, new Set());
+    expect(groups).toHaveLength(1);
+    expect(groups[0]).toMatchObject({ kind: 'run', size: 3 });
+  });
+
+  it('préfère un carré de quatre à une tierce de trois au même endroit', () => {
+    const hand = cards('S6 S7 S8 S9');
+    const groups = detectAdjacentGroups(hand, new Set());
+    expect(groups).toHaveLength(1);
+    expect(groups[0].size).toBe(4);
+  });
+
+  it('ne réutilise jamais une carte déjà prise par un autre groupe', () => {
+    const hand = cards('S6 S7 S8 H2 H3 H4');
+    const groups = detectAdjacentGroups(hand, new Set());
+    expect(groups).toHaveLength(2);
+    const used = groups.flatMap((g) => g.cardIds);
+    expect(new Set(used).size).toBe(used.length);
+  });
+
+  it('respecte les cartes exclues (déjà réservées dans un autre groupe préparé)', () => {
+    const hand = cards('H5 H6 H7');
+    const excluded = new Set([hand[1].id]);
+    expect(detectAdjacentGroups(hand, excluded)).toHaveLength(0);
   });
 });
 

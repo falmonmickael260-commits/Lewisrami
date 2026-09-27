@@ -1,7 +1,13 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { buildMeld, extendMeldWith, guessKind, qualifiesAsOpeningRun } from '@/rami/melds';
+import {
+  buildMeld,
+  detectAdjacentGroups,
+  extendMeldWith,
+  guessKind,
+  qualifiesAsOpeningRun,
+} from '@/rami/melds';
 import { findLayDown, findReclaims } from '@/rami/solver';
 import type { CardId, Meld, MeldProposal, RamiCard } from '@/rami/types';
 import type { RamiPlayerView } from '@/rami/view';
@@ -115,13 +121,6 @@ export function useRamiTurn(
   }, [groups]);
 
   /**
-   * Combinaisons présentes dans la main, détectées sans sélection préalable.
-   *
-   * Indépendant du seuil d'ouverture (71 points, tierce obligatoire) : ceci
-   * n'affiche qu'un repère visuel, la validité réelle pour poser reste
-   * vérifiée par le serveur au moment du clic sur « Poser ».
-   */
-  /**
    * Repère les cartes déjà **côte à côte** dans l'ordre affiché (celui du tri
    * ou du rangement manuel du joueur) qui forment une combinaison valide.
    *
@@ -130,45 +129,16 @@ export function useRamiTurn(
    * groupées ensemble — trier par signe fait sortir les tierces, par valeur
    * les brelans, et déplacer une carte à côté des autres aide à construire.
    */
-  const handGroups = useMemo(() => {
-    const groups: { id: string; cardIds: CardId[]; label: string; colorIndex: number }[] = [];
-    const claimed = new Set<CardId>();
-    let i = 0;
-    while (i < displayHand.length) {
-      const card = displayHand[i];
-      if (reservedIds.has(card.id) || claimed.has(card.id)) {
-        i += 1;
-        continue;
-      }
-      let matchSize = 0;
-      let matchKind: 'run' | 'set' | null = null;
-      for (const size of [4, 3]) {
-        const window = displayHand.slice(i, i + size);
-        if (window.length !== size) continue;
-        if (window.some((c) => reservedIds.has(c.id) || claimed.has(c.id))) continue;
-        const result = guessKind(window, view?.youId ?? 'me');
-        if (result.ok) {
-          matchSize = size;
-          matchKind = result.kind;
-          break;
-        }
-      }
-      if (matchKind) {
-        const ids = displayHand.slice(i, i + matchSize).map((c) => c.id);
-        for (const id of ids) claimed.add(id);
-        groups.push({
-          id: `auto-${groups.length}`,
-          cardIds: ids,
-          label: labelFor(matchKind, matchSize),
-          colorIndex: groups.length % 4,
-        });
-        i += matchSize;
-      } else {
-        i += 1;
-      }
-    }
-    return groups;
-  }, [displayHand, reservedIds, view?.youId]);
+  const handGroups = useMemo(
+    () =>
+      detectAdjacentGroups(displayHand, reservedIds, view?.youId ?? 'me').map((group, index) => ({
+        id: `auto-${index}`,
+        cardIds: group.cardIds,
+        label: labelFor(group.kind, group.size),
+        colorIndex: index % 4,
+      })),
+    [displayHand, reservedIds, view?.youId],
+  );
 
   const selectedCards = useMemo(
     () =>

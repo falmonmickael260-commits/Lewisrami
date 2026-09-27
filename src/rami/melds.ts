@@ -385,6 +385,60 @@ export function guessKind(cards: readonly RamiCard[], byId = 'preview'): MeldRes
   return sameRank ? asSet : asRun;
 }
 
+export interface AdjacentGroup {
+  cardIds: CardId[];
+  kind: 'run' | 'set';
+  size: number;
+}
+
+/**
+ * Combinaisons parmi des cartes déjà **côte à côte**, dans l'ordre donné.
+ *
+ * Volontairement différent de `guessKind` seul : ceci balaie une main entière
+ * de gauche à droite et ne retient que des fenêtres de cartes consécutives —
+ * jamais deux cartes qui ne se touchent pas. Sert à faire ressortir les
+ * combinaisons qu'un tri (par signe, par valeur) ou un rangement manuel vient
+ * de rapprocher, sans jamais chercher à travers toute la main.
+ *
+ * Une carte déjà retenue par un groupe n'est jamais réutilisée dans un autre ;
+ * à chaque position, un carré (4) est préféré à une tierce/un brelan (3).
+ */
+export function detectAdjacentGroups(
+  cards: readonly RamiCard[],
+  excluded: ReadonlySet<CardId>,
+  byId = 'preview',
+): AdjacentGroup[] {
+  const groups: AdjacentGroup[] = [];
+  const claimed = new Set<CardId>();
+  let i = 0;
+  while (i < cards.length) {
+    const card = cards[i];
+    if (excluded.has(card.id) || claimed.has(card.id)) {
+      i += 1;
+      continue;
+    }
+    let matched: AdjacentGroup | null = null;
+    for (const size of [4, 3]) {
+      const window = cards.slice(i, i + size);
+      if (window.length !== size) continue;
+      if (window.some((c) => excluded.has(c.id) || claimed.has(c.id))) continue;
+      const result = guessKind(window, byId);
+      if (result.ok) {
+        matched = { cardIds: window.map((c) => c.id), kind: result.kind, size };
+        break;
+      }
+    }
+    if (matched) {
+      for (const id of matched.cardIds) claimed.add(id);
+      groups.push(matched);
+      i += matched.size;
+    } else {
+      i += 1;
+    }
+  }
+  return groups;
+}
+
 /* ------------------------------------------------------------------ */
 /* Compléter une combinaison posée                                     */
 /* ------------------------------------------------------------------ */
