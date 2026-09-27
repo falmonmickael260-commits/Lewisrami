@@ -33,6 +33,11 @@ export interface RamiTurnState {
   /** Cartes immobilisées dans un groupe en attente. */
   reservedIds: ReadonlySet<CardId>;
 
+  /** Combinaisons détectées automatiquement dans la main, sans sélection. */
+  handGroups: { id: string; cardIds: CardId[]; label: string; colorIndex: number }[];
+  /** Sélectionne d'un coup toutes les cartes d'un groupe détecté. */
+  selectHandGroup: (cardIds: CardId[]) => void;
+
   /** Ce que la sélection courante formerait, et pourquoi elle échoue. */
   selectionHint: { valid: boolean; text: string | null; points: number };
 
@@ -104,6 +109,26 @@ export function useRamiTurn(view: RamiPlayerView | null, isMyTurn: boolean): Ram
     return set;
   }, [groups]);
 
+  /**
+   * Combinaisons présentes dans la main, détectées sans sélection préalable.
+   *
+   * Indépendant du seuil d'ouverture (71 points, tierce obligatoire) : ceci
+   * n'affiche qu'un repère visuel, la validité réelle pour poser reste
+   * vérifiée par le serveur au moment du clic sur « Poser ».
+   */
+  const handGroups = useMemo(() => {
+    const detectable = hand.filter((card) => !reservedIds.has(card.id));
+    if (detectable.length < 3) return [];
+    const lay = findLayDown(detectable, { keepAtLeast: 0 });
+    if (!lay) return [];
+    return lay.melds.map((proposal, index) => ({
+      id: `auto-${index}`,
+      cardIds: proposal.cardIds,
+      label: labelFor(proposal.kind, proposal.cardIds.length),
+      colorIndex: index % 4,
+    }));
+  }, [hand, reservedIds]);
+
   const selectedCards = useMemo(
     () =>
       selected
@@ -131,6 +156,12 @@ export function useRamiTurn(view: RamiPlayerView | null, isMyTurn: boolean): Ram
 
   const clearSelection = useCallback(() => setSelected([]), []);
   const clearGroups = useCallback(() => setGroups([]), []);
+
+  const selectHandGroup = useCallback((cardIds: CardId[]) => {
+    setSelected(cardIds);
+    sound().play('select');
+    haptic('select');
+  }, []);
 
   /* ---------------------------------------------------------------- */
   /* Aperçu de la sélection                                            */
@@ -351,6 +382,8 @@ export function useRamiTurn(view: RamiPlayerView | null, isMyTurn: boolean): Ram
     removeGroup,
     clearGroups,
     reservedIds,
+    handGroups,
+    selectHandGroup,
     selectionHint,
     stagedPoints,
     stagedHasRun,

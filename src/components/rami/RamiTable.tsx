@@ -617,6 +617,8 @@ export function RamiTable({
               selectedIds={turn.selected}
               selectionValid={turn.selectionHint.valid}
               selectionLabel={turn.selectionHint.valid ? turn.selectionHint.text : null}
+              autoGroups={turn.handGroups}
+              onSelectGroup={turn.selectHandGroup}
               reservedIds={turn.reservedIds}
               pinnedId={view.hints.mustUseTakenCard ? (view.turn?.takenCardId ?? null) : null}
               onToggle={turn.toggle}

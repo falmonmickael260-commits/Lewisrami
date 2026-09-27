@@ -8,6 +8,14 @@ import { RamiPlayingCard } from '@/components/ramicard/RamiPlayingCard';
 import { computeFanLayout } from '@/components/card/fan';
 import { anchorKeys, useAnchors } from '@/components/game/Anchors';
 
+/** Une couleur par groupe détecté, pour distinguer plusieurs combinaisons à la fois. */
+const GROUP_PALETTE = [
+  { ring: 'ring-emerald-300', rgb: '94,231,171', chip: 'border-emerald-300/70 bg-emerald-500' },
+  { ring: 'ring-sky-300', rgb: '122,196,255', chip: 'border-sky-300/70 bg-sky-500' },
+  { ring: 'ring-violet-300', rgb: '196,159,255', chip: 'border-violet-300/70 bg-violet-500' },
+  { ring: 'ring-amber-300', rgb: '250,204,120', chip: 'border-amber-300/70 bg-amber-500' },
+];
+
 interface RamiHandFanProps {
   cards: RamiCard[];
   selectedIds: CardId[];
@@ -31,6 +39,10 @@ interface RamiHandFanProps {
   selectionValid?: boolean;
   /** Nom de la combinaison valide ("Tierce · 51 pts"), affiché au-dessus du groupe. */
   selectionLabel?: string | null;
+  /** Combinaisons détectées automatiquement dans la main, sans sélection. */
+  autoGroups?: { id: string; cardIds: CardId[]; label: string; colorIndex: number }[];
+  /** Sélectionne d'un coup toutes les cartes d'un groupe détecté. */
+  onSelectGroup?: (cardIds: CardId[]) => void;
   /** Largeur disponible, en pixels. */
   width: number;
   compact: boolean;
@@ -56,6 +68,8 @@ export function RamiHandFan({
   selectedIds,
   selectionValid = false,
   selectionLabel = null,
+  autoGroups = [],
+  onSelectGroup,
   reservedIds,
   pinnedId,
   onToggle,
@@ -101,6 +115,40 @@ export function RamiHandFan({
     const right = Math.max(...xs) + cardWidth / 2;
     return { left, width: right - left };
   }, [selectionValid, selectedIndexes, layout.slots, cardWidth]);
+
+  // Combinaisons détectées dans la main, affichées tant qu'aucune sélection
+  // manuelle n'est en cours (sinon les deux systèmes de surbrillance se
+  // superposeraient).
+  const cardIndexById = useMemo(() => {
+    const map = new Map<CardId, number>();
+    cards.forEach((card, index) => map.set(card.id, index));
+    return map;
+  }, [cards]);
+
+  const autoGroupColorByCard = useMemo(() => {
+    const map = new Map<CardId, number>();
+    if (selectedIds.length > 0) return map;
+    for (const group of autoGroups) {
+      for (const id of group.cardIds) map.set(id, group.colorIndex);
+    }
+    return map;
+  }, [autoGroups, selectedIds.length]);
+
+  const autoGroupBoxes = useMemo(() => {
+    if (selectedIds.length > 0) return [];
+    return autoGroups
+      .map((group) => {
+        const xs = group.cardIds
+          .map((id) => cardIndexById.get(id))
+          .filter((index): index is number => index !== undefined)
+          .map((index) => layout.slots[index]?.x ?? 0);
+        if (xs.length === 0) return null;
+        const left = Math.min(...xs) - cardWidth / 2;
+        const right = Math.max(...xs) + cardWidth / 2;
+        return { ...group, left, width: right - left };
+      })
+      .filter((box): box is NonNullable<typeof box> => box !== null);
+  }, [autoGroups, selectedIds.length, cardIndexById, layout.slots, cardWidth]);
 
   const stagger = reducedMotion ? 0 : dealStagger;
 
@@ -190,12 +238,42 @@ export function RamiHandFan({
           </motion.div>
         </>
       )}
+      {autoGroupBoxes.map((box) => {
+        const palette = GROUP_PALETTE[box.colorIndex] ?? GROUP_PALETTE[0];
+        return (
+          <div key={box.id}>
+            <div
+              aria-hidden="true"
+              className="pointer-events-none absolute rounded-[28%]"
+              style={{
+                left: '50%',
+                marginLeft: box.left,
+                width: box.width,
+                bottom: bottomInset - cardHeight * 0.14,
+                height: cardHeight * 1.32,
+                zIndex: 0,
+                background: `linear-gradient(180deg, rgba(${palette.rgb},0.3), rgba(${palette.rgb},0.08))`,
+                boxShadow: `0 0 34px 8px rgba(${palette.rgb},0.35)`,
+              }}
+            />
+            <button
+              type="button"
+              onClick={() => onSelectGroup?.(box.cardIds)}
+              className={`absolute top-0 -translate-x-1/2 whitespace-nowrap rounded-full border px-2.5 py-0.5 text-[0.62rem] font-bold uppercase tracking-wide text-ink-950 shadow-[0_2px_10px_rgba(0,0,0,0.4)] ${palette.chip}`}
+              style={{ left: '50%', marginLeft: box.left + box.width / 2, zIndex: 700 }}
+            >
+              {box.label} ✓
+            </button>
+          </div>
+        );
+      })}
       {cards.map((card, index) => {
         const slot = layout.slots[index];
         if (!slot) return null;
         const isSelected = selected.has(card.id);
         const isReserved = reservedIds.has(card.id);
         const isPinned = pinnedId === card.id;
+        const autoColorIndex = autoGroupColorByCard.get(card.id);
 
         // Les cartes voisines s'écartent légèrement de la carte soulevée.
         const neighbourPush = selectedIndexes.reduce((sum, selectedIndex) => {
@@ -335,6 +413,17 @@ export function RamiHandFan({
                   <span
                     className="pointer-events-none absolute -inset-[2px] rounded-[8.5%] ring-2 ring-ruby-400/80"
                     style={{ boxShadow: '0 0 22px -4px rgba(242,96,106,0.7)' }}
+                  />
+                )}
+                {autoColorIndex !== undefined && !isSelected && !isReserved && !isPinned && (
+                  // Combinaison détectée automatiquement, sans que le joueur
+                  // ait rien sélectionné : la carte porte déjà la couleur de
+                  // son groupe.
+                  <span
+                    className={`pointer-events-none absolute -inset-[2px] rounded-[8.5%] ring-2 ${GROUP_PALETTE[autoColorIndex % GROUP_PALETTE.length].ring}`}
+                    style={{
+                      boxShadow: `0 0 18px -3px rgba(${GROUP_PALETTE[autoColorIndex % GROUP_PALETTE.length].rgb},0.6)`,
+                    }}
                   />
                 )}
               </motion.div>
