@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { shortLabel } from '@/rami/cards';
-import { MODE_LABELS } from '@/rami/scoring';
 import type { CardId, RamiCard, RamiEvent } from '@/rami/types';
 import type { RamiPlayerView } from '@/rami/view';
 import { haptic } from '@/lib/haptics';
@@ -419,23 +418,12 @@ export function useRamiDirector({
             }
             break;
 
-          case 'round_end': {
-            const winner = current?.players.find(
-              (player) => player.id === event.summary.winnerId,
-            );
-            pushNotice(
-              winner ? `${winner.name} termine la manche` : 'Manche terminée',
-              'good',
-            );
+          // La célébration annonce elle-même qui gagne, en grand : une
+          // notification de plus ne ferait que répéter par-dessus.
+          case 'round_end':
+          case 'game_over':
             sound().play('victory');
             break;
-          }
-
-          case 'game_over': {
-            pushNotice(`Partie terminée en ${MODE_LABELS[current?.settings.mode ?? '1v1']}`, 'good');
-            sound().play('victory');
-            break;
-          }
 
           default:
             break;

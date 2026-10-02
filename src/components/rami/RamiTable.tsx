@@ -23,6 +23,8 @@ import { Button } from '@/components/ui/Button';
 import { Sheet } from '@/components/ui/Sheet';
 import { haptic } from '@/lib/haptics';
 import { sound } from '@/lib/sound';
+import { Celebration, CELEBRATION_MS } from './Celebration';
+import { teamName } from './theme';
 import { MeldsBoard } from './MeldsBoard';
 import { Piles } from './Piles';
 import { RamiActionBar } from './RamiActionBar';
@@ -120,6 +122,7 @@ export function RamiTable({
   const [rulesOpen, setRulesOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [summaryOpen, setSummaryOpen] = useState(false);
+  const [celebrating, setCelebrating] = useState(false);
   const [soundOn, setSoundOn] = useState(true);
   const [busy, setBusy] = useState(false);
 
@@ -173,10 +176,23 @@ export function RamiTable({
     room.clearError();
   }, [room, pushNotice]);
 
-  // L'écran de fin de manche s'ouvre dès que le décompte arrive.
+  // La fête d'abord, le décompte ensuite : le panneau de scores arrive une
+  // fois le tampon retombé, sinon il recouvre le seul moment spectaculaire
+  // de la manche.
   useEffect(() => {
-    if (view?.phase === 'round_end') setSummaryOpen(true);
-    if (view?.phase === 'playing') setSummaryOpen(false);
+    if (view?.phase === 'playing') {
+      setCelebrating(false);
+      setSummaryOpen(false);
+      return;
+    }
+    if (view?.phase !== 'round_end' && view?.phase !== 'game_over') return;
+    setCelebrating(true);
+    const party = window.setTimeout(() => setCelebrating(false), CELEBRATION_MS);
+    const sheet = window.setTimeout(() => setSummaryOpen(true), CELEBRATION_MS - 250);
+    return () => {
+      window.clearTimeout(party);
+      window.clearTimeout(sheet);
+    };
   }, [view?.phase, view?.roundNumber]);
 
   /* ---------------------------------------------------------------- */
@@ -438,6 +454,24 @@ export function RamiTable({
 
   const me = view.players.find((player) => player.id === view.youId) ?? null;
   const others = view.players.filter((player) => player.id !== view.youId);
+
+  // Qui fête-t-on ? En fin de partie c'est l'équipe qui l'emporte, en fin de
+  // manche le joueur qui s'est débarrassé de ses cartes.
+  const celebrationMine =
+    view.phase === 'game_over'
+      ? me?.teamId === view.outcome?.winnerTeamId
+      : view.lastSummary?.winnerId === view.youId;
+  const celebrationSubtitle = (() => {
+    if (view.phase === 'game_over') {
+      if (!view.outcome) return 'Partie terminée';
+      return celebrationMine
+        ? 'Vous remportez la partie'
+        : `${teamName(view.outcome.winnerTeamId, view.settings.mode, view.players)} l’emporte`;
+    }
+    if (celebrationMine) return 'Vous terminez la manche';
+    const winner = view.players.find((player) => player.id === view.lastSummary?.winnerId);
+    return winner ? `${winner.name} termine la manche` : 'Manche terminée';
+  })();
   // En 2v2, le partenaire va au centre et les deux adversaires de part et
   // d'autre : les équipes se font face plutôt que de dépendre de l'ordre
   // d'arrivée à la table.
@@ -712,6 +746,14 @@ export function RamiTable({
       <RamiNotices notices={director.notices} />
 
       <RamiRulesSheet open={rulesOpen} onClose={() => setRulesOpen(false)} />
+
+      <Celebration
+        open={celebrating}
+        title={view.phase === 'game_over' ? 'VICTOIRE !' : 'RAMI !'}
+        subtitle={celebrationSubtitle}
+        mine={celebrationMine}
+        reducedMotion={reducedMotion}
+      />
 
       <RoundSummarySheet
         open={summaryOpen && view.phase === 'round_end'}
