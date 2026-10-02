@@ -38,6 +38,8 @@ export interface RamiTurnState {
 
   /** Cartes immobilisées dans un groupe en attente. */
   reservedIds: ReadonlySet<CardId>;
+  /** La sélection courante, prête à être envoyée telle quelle. `null` si invalide. */
+  selectionProposal: MeldProposal | null;
 
   /** Combinaisons détectées automatiquement dans la main, sans sélection. */
   handGroups: { id: string; cardIds: CardId[]; label: string; colorIndex: number }[];
@@ -216,23 +218,31 @@ export function useRamiTurn(
     };
   }, [selectedCards.length, preview, keepOne]);
 
-  const addGroup = useCallback(() => {
-    if (!preview || !preview.ok || keepOne) return;
-    const cards = selectedCards.slice();
-
-    // On fige ce que le joker représente : sans cette précision, le serveur
-    // pourrait le placer à l'autre extrémité de la tierce.
+  /**
+   * La sélection telle qu'on l'enverrait au serveur.
+   *
+   * On y fige ce que le joker représente : sans cette précision, le serveur
+   * pourrait le placer à l'autre extrémité de la tierce.
+   */
+  const selectionProposal = useMemo<MeldProposal | null>(() => {
+    if (!preview || !preview.ok || keepOne) return null;
     const jokerRole = preview.slots.find((slot) => slot.card.joker)?.jokerRole ?? null;
+    return {
+      kind: preview.kind,
+      cardIds: selectedCards.map((card) => card.id),
+      ...(jokerRole
+        ? { jokerRank: jokerRole.rank, jokerSuit: jokerRole.suit ?? undefined }
+        : {}),
+    };
+  }, [preview, keepOne, selectedCards]);
+
+  const addGroup = useCallback(() => {
+    if (!preview || !preview.ok || keepOne || !selectionProposal) return;
+    const cards = selectedCards.slice();
 
     const group: StagedGroup = {
       id: `g${++groupCounter}`,
-      proposal: {
-        kind: preview.kind,
-        cardIds: cards.map((card) => card.id),
-        ...(jokerRole
-          ? { jokerRank: jokerRole.rank, jokerSuit: jokerRole.suit ?? undefined }
-          : {}),
-      },
+      proposal: selectionProposal,
       cards,
       points: preview.points,
       qualifiesRun: qualifiesAsOpeningRun({ kind: preview.kind, slots: preview.slots } as Meld),
@@ -242,7 +252,7 @@ export function useRamiTurn(
     setSelected([]);
     sound().play('select');
     haptic('select');
-  }, [preview, keepOne, selectedCards]);
+  }, [preview, keepOne, selectedCards, selectionProposal]);
 
   const removeGroup = useCallback((id: string) => {
     setGroups((current) => current.filter((group) => group.id !== id));
@@ -395,6 +405,7 @@ export function useRamiTurn(
     reservedIds,
     handGroups,
     selectHandGroup,
+    selectionProposal,
     selectionHint,
     stagedPoints,
     stagedHasRun,

@@ -24,9 +24,12 @@ export interface RamiActionBarProps {
   onCancelTake: () => void;
 
   canGroup: boolean;
+  /** Libellé du bouton de pose d'un groupe : il change pendant l'ouverture. */
+  groupLabel: string;
   onGroup: () => void;
 
   canLay: boolean;
+  layLabel: string;
   layPoints: number;
   layHint: string | null;
   onLay: () => void;
@@ -66,8 +69,10 @@ export function RamiActionBar({
   canCancelTake,
   onCancelTake,
   canGroup,
+  groupLabel,
   onGroup,
   canLay,
+  layLabel,
   layPoints,
   layHint,
   onLay,
@@ -130,14 +135,14 @@ export function RamiActionBar({
         )}
 
         {canGroup && (
-          <Button variant="secondary" size="md" onClick={onGroup} disabled={busy}>
-            Préparer la combinaison
+          <Button variant="primary" size="md" onClick={onGroup} disabled={busy}>
+            {groupLabel}
           </Button>
         )}
 
         {canLay && (
           <Button variant="primary" size="md" onClick={onLay} disabled={busy}>
-            Poser · {layPoints} pts
+            {layLabel} · {layPoints} pts
           </Button>
         )}
 

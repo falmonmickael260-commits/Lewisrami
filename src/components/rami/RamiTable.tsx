@@ -325,6 +325,27 @@ export function RamiTable({
     [room.view, read, turn, director, guarded],
   );
 
+  /**
+   * Poser le groupe sélectionné.
+   *
+   * Hors ouverture, il part **entier** sur la table d'un seul geste. Pendant
+   * l'ouverture, les 71 points doivent être posés d'un bloc : le groupe
+   * rejoint alors les précédents, et l'ensemble part quand le compte y est.
+   */
+  const onLayGroup = useCallback(() => {
+    const proposal = turn.selectionProposal;
+    if (!proposal) return;
+
+    if (turn.requiredPoints === null) {
+      director.captureCards(proposal.cardIds);
+      void guarded('lay_melds', { melds: [proposal] }).then((ok) => {
+        if (ok) turn.clearSelection();
+      });
+      return;
+    }
+    turn.addGroup();
+  }, [turn, director, guarded]);
+
   const onNextRound = useCallback(() => void guarded('next_round'), [guarded]);
   const onRestart = useCallback(() => void guarded('restart'), [guarded]);
 
@@ -611,8 +632,14 @@ export function RamiTable({
               canCancelTake={canCancelTake}
               onCancelTake={onCancelTake}
               canGroup={turn.selectionHint.valid && isMyTurn && stage === 'meld'}
-              onGroup={turn.addGroup}
+              groupLabel={
+                turn.requiredPoints === null
+                  ? 'Poser ce groupe'
+                  : 'Ajouter à l’ouverture'
+              }
+              onGroup={onLayGroup}
               canLay={turn.canLay}
+              layLabel={turn.requiredPoints === null ? 'Poser' : 'Valider l’ouverture'}
               layPoints={turn.stagedPoints}
               layHint={turn.layHint}
               onLay={onLay}

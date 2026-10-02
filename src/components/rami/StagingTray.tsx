@@ -51,7 +51,7 @@ export function StagingTray({
     >
       <div className="mb-2 flex items-center gap-2">
         <span className="text-[0.62rem] font-bold uppercase tracking-[0.14em] text-cream/50">
-          À poser
+          Ouverture en cours
         </span>
         <span className="h-px flex-1 bg-white/8" aria-hidden="true" />
         <span
