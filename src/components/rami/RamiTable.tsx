@@ -74,10 +74,11 @@ function meldCardWidth(size: { width: number; height: number }, laidCount: numbe
 function pileCardWidth(size: { width: number; height: number }): number {
   if (size.width === 0) return 64;
   if (size.height < SHORT_SCREEN) return 46;
-  if (size.width < 400) return 56;
-  if (size.width < 640) return 64;
-  if (size.width < 900) return 74;
-  return 86;
+  const byWidth =
+    size.width < 400 ? 56 : size.width < 640 ? 64 : size.width < 900 ? 74 : 86;
+  // Sur un écran bas, la pioche ne doit pas manger la place du tapis : à deux
+  // combinaisons posées, c'est le tapis qu'on regarde, pas le talon.
+  return Math.max(40, Math.min(byWidth, Math.round(size.height * 0.075)));
 }
 
 /**
@@ -515,7 +516,7 @@ export function RamiTable({
             />
           );
           const piles = (
-            <div className="relative flex shrink-0 justify-center sm:items-center">
+            <div className="relative flex shrink-0 items-center justify-center">
               <Piles
                 stockCount={view.stockCount}
                 discardTop={view.discardTop}
@@ -535,7 +536,9 @@ export function RamiTable({
           );
           const board = (
             <div
-              className="relative flex min-h-0 max-h-full flex-1 flex-col justify-center overflow-y-auto overflow-x-hidden py-1 pr-0.5"
+              // Le tapis gère lui-même son ajustement : il se réduit pour que
+              // tout ce qui est posé tienne dans la place disponible.
+              className="relative flex min-h-0 max-h-full flex-1 flex-col overflow-hidden py-1 pr-0.5"
               aria-label="Combinaisons posées"
             >
               <MeldsBoard
@@ -561,9 +564,9 @@ export function RamiTable({
             return (
               <div className="flex min-h-0 flex-1 flex-col items-center gap-1.5 px-2 pb-1">
                 {renderSeat(partner2v2)}
-                <div className="flex min-h-0 w-full flex-1 items-center justify-center gap-2">
+                <div className="flex min-h-0 w-full flex-1 items-stretch justify-center gap-2">
                   {renderSeat(rivalLeft)}
-                  <div className="relative mx-auto flex max-h-full w-full max-w-3xl flex-1 items-center gap-2 sm:gap-4">
+                  <div className="relative mx-auto flex h-full w-full max-w-3xl flex-1 items-stretch gap-2 sm:gap-4">
                     {felt}
                     {piles}
                     {board}
@@ -581,8 +584,8 @@ export function RamiTable({
                   {opponents.map((player) => renderSeat(player))}
                 </div>
               )}
-              <div className="flex min-h-0 flex-1 items-center justify-center px-2">
-                <div className="relative mx-auto flex max-h-full w-full max-w-5xl flex-col gap-2 sm:flex-row sm:gap-4">
+              <div className="flex min-h-[6.5rem] flex-1 items-stretch justify-center px-2">
+                <div className="relative mx-auto flex h-full w-full max-w-5xl flex-col gap-2 sm:flex-row sm:gap-4">
                   {felt}
                   {piles}
                   {board}
@@ -606,6 +609,7 @@ export function RamiTable({
           <div className="mx-auto flex max-w-4xl flex-col gap-1.5">
             <AnimatePresence initial={false}>
               {turn.groups.length > 0 && (
+                <div key="tray-scroll" className="max-h-[22vh] overflow-y-auto overflow-x-hidden">
                 <StagingTray
                   key="tray"
                   groups={turn.groups}
@@ -616,6 +620,7 @@ export function RamiTable({
                   onRemove={turn.removeGroup}
                   onClear={turn.clearGroups}
                 />
+                </div>
               )}
             </AnimatePresence>
 
