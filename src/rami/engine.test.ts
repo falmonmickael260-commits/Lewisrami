@@ -955,3 +955,61 @@ describe('chrono', () => {
     expect(leastUsefulCard(hand)?.id).toBe(c('SR').id);
   });
 });
+
+/* ------------------------------------------------------------------ */
+/* Carte reprise dans la défausse                                      */
+/* ------------------------------------------------------------------ */
+
+describe('reprendre la défausse pour compléter la table', () => {
+  it('accepte de compléter une combinaison posée avec la carte reprise', () => {
+    const state = makeTable({
+      hands: ['S2 S3 D9', 'C4 C5 C6'],
+      discard: 'H9',
+      stock: 'D2',
+      current: 0,
+      stage: 'draw',
+      openings: { 0: 71 },
+      entered: [0],
+      melds: [{ by: 0, cards: 'H6 H7 H8' }],
+    });
+    const taken = reduce(state, { type: 'take_discard', playerId: 'p0' }, 0);
+    expect(taken.state.turn?.takenCardId).toBe(c('H9').id);
+
+    const meldId = taken.state.melds[0].id;
+    const extended = reduce(
+      taken.state,
+      { type: 'extend_meld', playerId: 'p0', meldId, cardIds: [c('H9').id] },
+      0,
+    );
+    expect(extended.state.melds[0].slots).toHaveLength(4);
+    // La carte reprise a servi : la défausse est de nouveau permise.
+    expect(extended.state.turn?.takenCardUsed).toBe(true);
+
+    const finish = reduce(
+      extended.state,
+      { type: 'discard', playerId: 'p0', cardId: c('D9').id },
+      0,
+    );
+    expect(finish.state.currentPlayerId).toBe('p1');
+  });
+
+  it('refuse de jeter tant que la carte reprise n’a pas servi', () => {
+    const state = makeTable({
+      hands: ['S2 S3 D9', 'C4 C5 C6'],
+      discard: 'H9',
+      stock: 'D2',
+      current: 0,
+      stage: 'draw',
+      openings: { 0: 71 },
+      entered: [0],
+      melds: [{ by: 0, cards: 'H6 H7 H8' }],
+    });
+    const taken = reduce(state, { type: 'take_discard', playerId: 'p0' }, 0);
+    const refus = reduce(
+      taken.state,
+      { type: 'discard', playerId: 'p0', cardId: c('S2').id },
+      0,
+    );
+    expect(refus.state.players[0].hand).toHaveLength(4);
+  });
+});
