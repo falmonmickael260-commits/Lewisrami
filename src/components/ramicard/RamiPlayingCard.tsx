@@ -3,7 +3,7 @@
 import { memo } from 'react';
 import type { RamiCard } from '@/rami/types';
 import { CARD_RATIO } from '@/components/card/geometry';
-import { CardBack } from '@/components/card/CardBack';
+import { RamiCardBack } from './RamiCardBack';
 import { CardBackLite } from '@/components/card/CardBackLite';
 import { RamiCardFace } from './RamiCardFace';
 
@@ -70,7 +70,7 @@ function RamiPlayingCardBase({
         lite ? (
           <CardBackLite width={width} />
         ) : (
-          <CardBack />
+          <RamiCardBack />
         )
       ) : (
         <RamiCardFace card={card} dimmed={dimmed} width={width} />

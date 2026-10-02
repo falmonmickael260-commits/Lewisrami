@@ -28,7 +28,7 @@ export function RamiTopBar({ view, status, onRules, onMenu }: RamiTopBarProps) {
       <div className="panel pointer-events-auto mx-auto flex max-w-5xl flex-wrap items-center gap-x-2 gap-y-1 rounded-2xl px-2.5 py-1.5">
         <div className="flex min-w-0 shrink-0 flex-col leading-tight">
           <span className="text-[0.58rem] font-bold uppercase tracking-[0.16em] text-gold-500/70">
-            Rami · {MODE_LABELS[view.settings.mode]}
+            Rami 71 · {MODE_LABELS[view.settings.mode]}
           </span>
           <span className="truncate text-[0.74rem] font-semibold text-cream/80">
             {view.roundNumber > 0 ? `Manche ${view.roundNumber}` : PHASE_LABELS[view.phase]}

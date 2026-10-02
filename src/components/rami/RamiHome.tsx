@@ -1,7 +1,6 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { cardsFromSpec } from '@/rami/notation';
@@ -127,7 +126,7 @@ export function RamiHome() {
             transition={{ type: 'spring', stiffness: 260, damping: 24 }}
             className="text-gradient-gold font-display text-6xl leading-none sm:text-7xl 2xl:text-8xl"
           >
-            Rami
+            Rami&nbsp;71
           </motion.h1>
           <motion.p
             initial={{ opacity: 0 }}
@@ -255,14 +254,8 @@ export function RamiHome() {
             onClick={() => setRulesOpen(true)}
             className="mx-auto rounded-full border border-white/12 bg-white/5 px-4 py-2 text-[0.78rem] font-semibold text-cream/70 transition hover:bg-white/12 hover:text-cream"
           >
-            📖 Règlement du Rami
+            📖 Règlement du Rami 71
           </button>
-          <Link
-            href="/president"
-            className="text-[0.74rem] text-cream/35 transition hover:text-cream/70"
-          >
-            Jouer au Président
-          </Link>
         </div>
       </div>
 
