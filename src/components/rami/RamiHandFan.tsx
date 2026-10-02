@@ -8,6 +8,10 @@ import { RamiPlayingCard } from '@/components/ramicard/RamiPlayingCard';
 import { computeFanLayout } from '@/components/card/fan';
 import { anchorKeys, useAnchors } from '@/components/game/Anchors';
 
+/** Repère de dépose : il doit ressortir autant sur le blanc des cartes que sur le tapis. */
+const MARKER = '#f5a524';
+const MARKER_RING = 'rgba(14,26,20,0.65)';
+
 /** Une couleur par groupe détecté, pour distinguer plusieurs combinaisons à la fois. */
 const GROUP_PALETTE = [
   { ring: 'ring-emerald-300', rgb: '94,231,171', chip: 'border-emerald-300/70 bg-emerald-500' },
@@ -164,23 +168,40 @@ export function RamiHandFan({
   // Emplacement visé pendant un glissement en cours : sans repère, le joueur
   // ne sait pas où sa carte va atterrir avant de la lâcher.
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
+  /** Carte en cours de déplacement : ses voisines s'écartent, pas elle. */
+  const [draggingId, setDraggingId] = useState<CardId | null>(null);
 
-  const nearestSlot = useCallback((clientX: number): number => {
-    const frame = frameRef.current;
-    if (!frame) return 0;
-    const rect = frame.getBoundingClientRect();
-    const centerX = rect.left + rect.width / 2;
-    let best = 0;
-    let bestDistance = Infinity;
-    layout.slots.forEach((slot, index) => {
-      const distance = Math.abs(centerX + slot.x - clientX);
-      if (distance < bestDistance) {
-        bestDistance = distance;
-        best = index;
+  /**
+   * Interstice visé par le doigt : le nombre de cartes dont le centre est
+   * déjà passé à sa gauche.
+   *
+   * Viser « la carte la plus proche » penchait systématiquement d'une
+   * demi-carte : on amenait sa carte à droite du 8 et le repère restait à sa
+   * gauche. En comptant les centres franchis, dépasser le milieu d'une carte
+   * fait basculer la cible juste après elle — ce qu'on attend en rangeant une
+   * main, et ce que le repère montre exactement.
+   */
+  const gapAt = useCallback(
+    (clientX: number): number => {
+      const frame = frameRef.current;
+      if (!frame) return 0;
+      const rect = frame.getBoundingClientRect();
+      const centerX = rect.left + rect.width / 2;
+      let gap = 0;
+      for (const slot of layout.slots) {
+        if (centerX + slot.x < clientX) gap += 1;
       }
-    });
-    return best;
-  }, [layout.slots]);
+      return gap;
+    },
+    [layout.slots],
+  );
+
+  /** Le doigt est-il encore dans l'éventail, ou vise-t-il la table ? */
+  const overHand = useCallback((clientY: number): boolean => {
+    const frame = frameRef.current;
+    if (!frame) return true;
+    return clientY > frame.getBoundingClientRect().top;
+  }, []);
 
   /** Position de la frontière entre deux cartes, pour un repère qui tombe
    * vraiment dans l'espace entre elles plutôt que sur l'une d'elles. */
@@ -198,21 +219,39 @@ export function RamiHandFan({
   const handleDrag = useCallback(
     (_: unknown, info: PanInfo) => {
       if (!onReorder) return;
-      setDragOverIndex(nearestSlot(info.point.x));
+      // Au-dessus de l'éventail, le joueur vise la table : afficher un repère
+      // de rangement lui ferait croire que sa carte va rentrer dans sa main.
+      setDragOverIndex(overHand(info.point.y) ? gapAt(info.point.x) : null);
     },
-    [onReorder, nearestSlot],
+    [onReorder, gapAt, overHand],
+  );
+
+  /**
+   * Place à demander au rangement pour l'interstice visé.
+   *
+   * Le rangement retire d'abord la carte avant de la réinsérer : tout ce qui
+   * était à sa droite se décale alors d'un cran. Sans cette correction, un
+   * déplacement vers la droite tombait toujours une carte trop loin.
+   */
+  const targetIndexFor = useCallback(
+    (cardId: CardId, gap: number): number => {
+      const from = cards.findIndex((card) => card.id === cardId);
+      return from !== -1 && gap > from ? gap - 1 : gap;
+    },
+    [cards],
   );
 
   const handleDragEnd = useCallback(
     (cardId: CardId, info: PanInfo) => {
       setDragOverIndex(null);
+      setDraggingId(null);
       // La table a la priorité : défausse et combinaisons d'abord.
       const consumed = onDrop?.(cardId, info.point) ?? false;
 
       if (!consumed && onReorder) {
-        // Sinon le joueur range sa main : on pose la carte là où le repère
-        // visuel l'annonçait, à l'endroit le plus proche du point de lâcher.
-        onReorder(cardId, nearestSlot(info.point.x));
+        // Sinon le joueur range sa main : la carte va exactement dans
+        // l'interstice que le repère montrait.
+        onReorder(cardId, targetIndexFor(cardId, gapAt(info.point.x)));
       }
 
       // Le clic de fin de geste part juste après : on libère au tour suivant.
@@ -220,7 +259,7 @@ export function RamiHandFan({
         draggedRef.current = false;
       }, 0);
     },
-    [onDrop, onReorder, nearestSlot],
+    [onDrop, onReorder, gapAt, targetIndexFor],
   );
 
   return (
@@ -274,19 +313,41 @@ export function RamiHandFan({
         // pas une carte entière — plus fin, et à l'endroit précis où elle ira.
         <motion.div
           aria-hidden="true"
-          className="pointer-events-none absolute rounded-full bg-gold-300"
+          className="pointer-events-none absolute flex flex-col items-center"
           style={{
             left: '50%',
-            bottom: bottomInset + cardHeight * 0.05,
-            width: 3,
-            height: cardHeight * 0.9,
+            bottom: bottomInset + cardHeight * 0.03,
+            width: 0,
             zIndex: 998,
-            boxShadow: '0 0 6px 1px rgba(236,208,138,0.7)',
           }}
           initial={false}
-          animate={{ marginLeft: gapX(dragOverIndex) - 1.5 }}
+          animate={{ marginLeft: gapX(dragOverIndex) }}
           transition={{ type: 'spring', stiffness: 500, damping: 34 }}
-        />
+        >
+          {/* Or saturé cerclé de sombre : l'or pâle du thème disparaissait sur
+              le blanc des cartes, là même où il faut le voir. */}
+          <div
+            style={{
+              width: 14,
+              height: 14,
+              borderRadius: 999,
+              background: MARKER,
+              border: `2px solid ${MARKER_RING}`,
+              boxShadow: `0 0 10px 2px ${MARKER}99`,
+            }}
+          />
+          <div
+            style={{
+              width: 6,
+              height: cardHeight * 0.92,
+              marginTop: -4,
+              borderRadius: 999,
+              background: MARKER,
+              border: `1.5px solid ${MARKER_RING}`,
+              boxShadow: `0 0 10px 2px ${MARKER}80`,
+            }}
+          />
+        </motion.div>
       )}
       {autoGroupBoxes.map((box) => {
         const palette = GROUP_PALETTE[box.colorIndex] ?? GROUP_PALETTE[0];
@@ -339,6 +400,14 @@ export function RamiHandFan({
 
         const lifted = isSelected || isReserved;
 
+        // Pendant un glissement, la main s'ouvre : les cartes d'avant
+        // l'interstice reculent, celles d'après avancent. On voit la place se
+        // créer au lieu de deviner où la carte va tomber.
+        const dragPush =
+          dragOverIndex === null || card.id === draggingId
+            ? 0
+            : (index < dragOverIndex ? -1 : 1) * cardWidth * 0.3;
+
         return (
           <motion.button
             key={card.id}
@@ -371,7 +440,7 @@ export function RamiHandFan({
             }}
             initial={false}
             animate={{
-              x: slot.x + neighbourPush,
+              x: slot.x + neighbourPush + dragPush,
               y: slot.y - (isSelected ? cardHeight * 0.34 : isReserved ? cardHeight * 0.2 : 0),
               rotate: slot.rotate * (lifted ? 0.18 : 1),
               scale: isSelected ? 1.05 : isReserved ? 1.03 : 1,
@@ -402,6 +471,7 @@ export function RamiHandFan({
               dragElastic={0.14}
               onDragStart={() => {
                 draggedRef.current = true;
+                setDraggingId(card.id);
               }}
               onDrag={handleDrag}
               onDragEnd={(_, info) => handleDragEnd(card.id, info)}
