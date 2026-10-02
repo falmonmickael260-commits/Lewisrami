@@ -33,6 +33,9 @@ const JOKER_COLORS = [RED, BLACK];
 
 const PANEL = { x: 44, y: 56, w: 162, h: 238 };
 
+/** Point fixe du grossissement de l'index : le haut de la colonne du coin. */
+const CORNER_ANCHOR = { x: 25, y: 34 };
+
 function FaceArt({
   card,
   color,
@@ -132,14 +135,37 @@ function FaceArt({
   );
 }
 
+/**
+ * Agrandissement de l'index de coin selon la taille réelle de la carte.
+ *
+ * Dans l'éventail d'un téléphone en portrait, une carte fait à peine 70 px de
+ * large : le chiffre et l'enseigne du coin, dessinés pour une carte de
+ * référence, tombent alors sous la taille confortable à l'œil. On les grossit
+ * donc d'autant que la carte est petite — jusqu'à un quart de plus — sans
+ * toucher au dessin de la carte, qui garde ses proportions traditionnelles.
+ */
+function cornerScale(width?: number): number {
+  /** En dessous, c'est un éventail de téléphone serré. */
+  const SMALL = 78;
+  /** Au-dessus, l'index est déjà parfaitement lisible. */
+  const LARGE = 152;
+  const MAX = 1.3;
+  if (!width || width >= LARGE) return 1;
+  if (width <= SMALL) return MAX;
+  return 1 + (MAX - 1) * ((LARGE - width) / (LARGE - SMALL));
+}
+
 export interface RamiCardFaceProps {
   card: RamiCard;
   /** Atténue la carte lorsqu'elle n'est pas jouable. */
   dimmed?: boolean;
+  /** Largeur rendue en pixels CSS : sert à grossir l'index sur petite carte. */
+  width?: number;
   className?: string;
 }
 
-function RamiCardFaceBase({ card, dimmed = false, className }: RamiCardFaceProps) {
+function RamiCardFaceBase({ card, dimmed = false, width, className }: RamiCardFaceProps) {
+  const corner = cornerScale(width);
   const uid = useId().replace(/:/g, '');
   const color = card.joker
     ? JOKER_COLORS[card.deck % JOKER_COLORS.length]
@@ -217,39 +243,48 @@ function RamiCardFaceBase({ card, dimmed = false, className }: RamiCardFaceProps
           transform={flipped ? `translate(${CARD_W} ${CARD_H}) rotate(180)` : undefined}
           fill={color}
         >
-          {card.joker ? (
-            <>
-              <g transform="translate(25 48)">
-                <Star r={17} />
-              </g>
-              <text
-                x={25}
-                y={84}
-                textAnchor="middle"
-                fontFamily="var(--font-sans)"
-                fontWeight={800}
-                fontSize={16}
-                letterSpacing="-0.5"
-              >
-                JKR
-              </text>
-            </>
-          ) : (
-            <>
-              <text
-                x={25}
-                y={52}
-                textAnchor="middle"
-                fontFamily="var(--font-sans)"
-                fontWeight={800}
-                fontSize={label.length > 1 ? 35 : 42}
-                letterSpacing={label.length > 1 ? '-2.5' : '0'}
-              >
-                {label}
-              </text>
-              <SuitPip suit={card.suit as Suit} x={25} y={78} size={25} />
-            </>
-          )}
+          {/* L'index grossit d'un bloc, ancré dans son coin : il ne dérive pas. */}
+          <g
+            transform={
+              corner === 1
+                ? undefined
+                : `translate(${CORNER_ANCHOR.x} ${CORNER_ANCHOR.y}) scale(${corner}) translate(${-CORNER_ANCHOR.x} ${-CORNER_ANCHOR.y})`
+            }
+          >
+            {card.joker ? (
+              <>
+                <g transform="translate(25 48)">
+                  <Star r={17} />
+                </g>
+                <text
+                  x={25}
+                  y={84}
+                  textAnchor="middle"
+                  fontFamily="var(--font-sans)"
+                  fontWeight={800}
+                  fontSize={16}
+                  letterSpacing="-0.5"
+                >
+                  JKR
+                </text>
+              </>
+            ) : (
+              <>
+                <text
+                  x={25}
+                  y={52}
+                  textAnchor="middle"
+                  fontFamily="var(--font-sans)"
+                  fontWeight={800}
+                  fontSize={label.length > 1 ? 35 : 42}
+                  letterSpacing={label.length > 1 ? '-2.5' : '0'}
+                >
+                  {label}
+                </text>
+                <SuitPip suit={card.suit as Suit} x={25} y={78} size={25} />
+              </>
+            )}
+          </g>
         </g>
       ))}
 

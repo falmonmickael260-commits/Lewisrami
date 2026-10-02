@@ -73,7 +73,7 @@ function RamiPlayingCardBase({
           <CardBack />
         )
       ) : (
-        <RamiCardFace card={card} dimmed={dimmed} />
+        <RamiCardFace card={card} dimmed={dimmed} width={width} />
       )}
     </div>
   );
