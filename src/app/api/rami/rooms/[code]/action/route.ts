@@ -44,6 +44,9 @@ export async function POST(
     return jsonError('Vous ne faites plus partie de cette table.', 401);
   }
 
+  // Il joue : il est là, quel que soit l'état de son flux temps réel.
+  ramiStore.touchPlayer(room, playerId);
+
   const action = typeof body.action === 'string' ? body.action : '';
   const error = handle(room, playerId, action, body);
   if (error) return jsonError(error, 400);

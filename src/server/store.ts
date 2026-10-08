@@ -31,6 +31,8 @@ export const updateSettings = store.updateSettings;
 export const canStart = store.canStart;
 export const attach = store.attach;
 export const detach = store.detach;
+export const touchPlayer = store.touchPlayer;
+export const flush = store.flush;
 export const probe = store.probe;
 
 export function dispatch(room: Room, action: GameAction): GameEvent[] {

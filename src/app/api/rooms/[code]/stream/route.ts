@@ -5,7 +5,13 @@ import { attach, detach, findRoom, playerIdForToken, type Subscriber } from '@/s
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
+/** Plafond de la plateforme pour une fonction : au-delà, elle est tuée net. */
+export const maxDuration = 60;
+
 const HEARTBEAT_MS = 20000;
+
+/** Durée de vie volontaire d'un flux : on referme avant d'être coupé. */
+const STREAM_MAX_MS = 45000;
 
 /**
  * Flux temps réel (SSE). Chaque abonné reçoit une vue *personnalisée* :
@@ -27,6 +33,7 @@ export async function GET(
   const encoder = new TextEncoder();
   let subscriber: Subscriber | null = null;
   let heartbeat: ReturnType<typeof setInterval> | null = null;
+  let lifetime: ReturnType<typeof setTimeout> | null = null;
   let closed = false;
 
   const stream = new ReadableStream<Uint8Array>({
@@ -53,6 +60,7 @@ export async function GET(
         if (closed) return;
         closed = true;
         if (heartbeat) clearInterval(heartbeat);
+        if (lifetime) clearTimeout(lifetime);
         if (subscriber) detach(room, subscriber);
         try {
           controller.close();
@@ -61,11 +69,15 @@ export async function GET(
         }
       };
 
+      lifetime = setTimeout(cleanup, STREAM_MAX_MS);
+      lifetime.unref?.();
+
       request.signal.addEventListener('abort', cleanup);
     },
     cancel() {
       closed = true;
       if (heartbeat) clearInterval(heartbeat);
+      if (lifetime) clearTimeout(lifetime);
       if (subscriber) detach(room, subscriber);
     },
   });

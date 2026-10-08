@@ -38,6 +38,16 @@ export interface GameRoomHandle<V, E> {
 }
 
 const MAX_BACKOFF = 8000;
+/**
+ * Le flux se referme volontairement toutes les quarante-cinq secondes, et
+ * l'hébergeur en coupe d'autres sans prévenir. La première reprise doit donc
+ * être quasi immédiate : c'est le cas courant, pas un incident.
+ */
+const FIRST_RETRY_MS = 250;
+/** Resynchronisation de secours quand le flux est debout. */
+const RESYNC_LIVE_MS = 150000;
+/** Et quand il ne l'est pas : on ne laisse pas la table figée. */
+const RESYNC_BROKEN_MS = 4000;
 
 /**
  * Connexion temps réel à une salle, commune au Président et au Rami.
@@ -64,6 +74,8 @@ export function useGameRoom<V extends { serverNow: number }, E>(
   const retryRef = useRef(0);
   const retryTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const aliveRef = useRef(true);
+  /** 404 d'affilée sur la sonde : il en faut plusieurs pour conclure. */
+  const missesRef = useRef(0);
 
   useEffect(() => {
     setSession(loadSession(code, namespace));
@@ -114,8 +126,13 @@ export function useGameRoom<V extends { serverNow: number }, E>(
       sourceRef.current = null;
       if (!aliveRef.current) return;
       setStatus('reconnecting');
-      // Repli exponentiel plafonné : on ne martèle jamais le serveur.
-      const delay = Math.min(MAX_BACKOFF, 600 * 2 ** retryRef.current);
+      // Repli exponentiel plafonné : on ne martèle jamais le serveur. Mais la
+      // toute première reprise part tout de suite — une fermeture de flux est
+      // la normale ici, pas une panne.
+      const delay =
+        retryRef.current === 0
+          ? FIRST_RETRY_MS
+          : Math.min(MAX_BACKOFF, 600 * 2 ** retryRef.current);
       retryRef.current = Math.min(retryRef.current + 1, 5);
       retryTimer.current = setTimeout(connect, delay);
     };
@@ -135,7 +152,7 @@ export function useGameRoom<V extends { serverNow: number }, E>(
   // Un onglet remis au premier plan après une veille doit resynchroniser tout de suite.
   useEffect(() => {
     const onVisible = () => {
-      if (document.visibilityState !== 'visible') return;
+      if (document.visibilityState === 'hidden') return;
       if (sourceRef.current && sourceRef.current.readyState === EventSource.OPEN) return;
       sourceRef.current?.close();
       sourceRef.current = null;
@@ -144,9 +161,15 @@ export function useGameRoom<V extends { serverNow: number }, E>(
     };
     document.addEventListener('visibilitychange', onVisible);
     window.addEventListener('online', onVisible);
+    // Retour depuis le cache arrière-plan d'iOS : la page revient telle quelle,
+    // flux compris — mais celui-ci est mort depuis longtemps.
+    window.addEventListener('pageshow', onVisible);
+    window.addEventListener('focus', onVisible);
     return () => {
       document.removeEventListener('visibilitychange', onVisible);
       window.removeEventListener('online', onVisible);
+      window.removeEventListener('pageshow', onVisible);
+      window.removeEventListener('focus', onVisible);
     };
   }, [connect]);
 
@@ -165,7 +188,10 @@ export function useGameRoom<V extends { serverNow: number }, E>(
   useEffect(() => {
     if (!session) return;
     let cancelled = false;
-    const ping = async () => {
+    let timer: ReturnType<typeof setTimeout> | null = null;
+
+    const resync = async () => {
+      const broken = sourceRef.current?.readyState !== EventSource.OPEN;
       try {
         const response = await fetch(
           `${apiBase}/${code}/state?token=${encodeURIComponent(session.token)}`,
@@ -173,22 +199,32 @@ export function useGameRoom<V extends { serverNow: number }, E>(
         );
         if (cancelled) return;
         if (response.status === 404) {
-          setStatus('gone');
-          setError("Cette salle n'existe plus.");
-          return;
-        }
-        if (response.ok) {
+          // Une salle vraiment disparue ne réapparaît pas : on ne l'annonce
+          // qu'après confirmation, pour ne pas sortir le joueur sur un hoquet.
+          missesRef.current += 1;
+          if (missesRef.current >= 3) {
+            setStatus('gone');
+            setError("Cette salle n'existe plus.");
+          }
+        } else if (response.ok) {
+          missesRef.current = 0;
           const body = (await response.json()) as { view: V };
           setView(body.view);
+          // Le flux est peut-être figé sans l'avoir dit : si la vue arrive
+          // encore par cette voie, la table n'est pas perdue pour autant.
+          if (!broken) setStatus('live');
         }
       } catch {
         /* le flux SSE reste la source principale ; un raté ici n'est pas fatal */
       }
+      if (cancelled) return;
+      timer = setTimeout(resync, broken ? RESYNC_BROKEN_MS : RESYNC_LIVE_MS);
     };
-    const interval = setInterval(ping, 4 * 60 * 1000);
+
+    timer = setTimeout(resync, RESYNC_BROKEN_MS);
     return () => {
       cancelled = true;
-      clearInterval(interval);
+      if (timer) clearTimeout(timer);
     };
   }, [session, code, apiBase]);
 

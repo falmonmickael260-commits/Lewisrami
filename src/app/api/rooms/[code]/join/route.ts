@@ -1,7 +1,7 @@
 import { buildPlayerView } from '@/game/view';
 import { normalizeRoomCode } from '@/server/codes';
 import { jsonError, readJson, sanitizeAvatar, sanitizeName } from '@/server/input';
-import { findRoom, joinRoom } from '@/server/store';
+import { findRoom, flush, joinRoom } from '@/server/store';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -20,6 +20,10 @@ export async function POST(
 
   const joined = joinRoom(room, name, sanitizeAvatar(body.avatar));
   if (!joined.ok) return jsonError(joined.error, 409);
+
+  // La salle doit être écrite avant la réponse : sinon, sur un hébergeur sans
+  // serveur, la requête suivante ne la retrouverait pas.
+  await flush(room);
 
   return Response.json({
     code: room.code,

@@ -1,7 +1,7 @@
 import { buildPlayerView } from '@/game/view';
 import { normalizeRoomCode } from '@/server/codes';
 import { jsonError } from '@/server/input';
-import { findRoom, playerIdForToken } from '@/server/store';
+import { findRoom, flush, playerIdForToken, touchPlayer } from '@/server/store';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -21,5 +21,8 @@ export async function GET(
 
   const token = new URL(request.url).searchParams.get('token');
   const playerId = playerIdForToken(room, token);
+  // Cette sonde est aussi le signe de vie d'un joueur dont le flux est coupé.
+  touchPlayer(room, playerId);
+  await flush(room);
   return Response.json({ view: buildPlayerView(room.state, playerId, Date.now()) });
 }

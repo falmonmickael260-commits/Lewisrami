@@ -20,5 +20,8 @@ export async function GET(
 
   const token = new URL(request.url).searchParams.get('token');
   const playerId = ramiStore.playerIdForToken(room, token);
+  // Cette sonde est aussi le signe de vie d'un joueur dont le flux est coupé.
+  ramiStore.touchPlayer(room, playerId);
+  await ramiStore.flush(room);
   return Response.json({ view: ramiStore.buildView(room, playerId) });
 }

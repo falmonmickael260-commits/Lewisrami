@@ -100,6 +100,15 @@ export interface Room<S, V, E> {
   botTimer: ReturnType<typeof setTimeout> | null;
   dropTimers: Map<string, ReturnType<typeof setTimeout>>;
   /**
+   * Instant où le bot doit jouer, et version de l'état à ce moment-là.
+   *
+   * Sur un hébergeur sans serveur, aucune minuterie ne survit à la réponse :
+   * le bot ne jouerait jamais et la partie semblerait gelée. L'échéance est
+   * donc notée pour être rattrapée à la requête suivante.
+   */
+  botDueAt: number | null;
+  botVersion: number | null;
+  /**
    * Dernière écriture de persistance en cours.
    *
    * Sur un hébergeur sans serveur, la fonction peut se figer dès la réponse
@@ -118,7 +127,18 @@ const ROOM_TTL_MS = 3 * 60 * 60 * 1000;
 const EVENT_HISTORY = 80;
 const BOT_MIN_DELAY = 850;
 const BOT_MAX_DELAY = 1800;
-const LOBBY_DROP_GRACE_MS = 12000;
+/**
+ * Délai avant de déclarer un joueur hors ligne.
+ *
+ * Un flux SSE ne tient pas indéfiniment : la plateforme le coupe, un proxy
+ * s'en mêle, le téléphone passe du wifi à la 4G. Le navigateur se reconnecte
+ * en moins d'une seconde, mais déclarer le joueur absent dans l'intervalle
+ * avait deux effets très visibles : la pastille « déconnecté » clignotait chez
+ * les autres, et surtout son tour passait de soixante à huit secondes — il
+ * était joué automatiquement à sa place. On attend donc de vraies secondes
+ * avant de conclure à une absence.
+ */
+const PRESENCE_GRACE_MS = 10000;
 
 interface Registry<S, V, E> {
   rooms: Map<string, Room<S, V, E>>;
@@ -193,18 +213,46 @@ export function createRoomStore<S, A, E, V>(adapter: GameAdapter<S, A, E, V>) {
       timer: null,
       botTimer: null,
       dropTimers: new Map(),
+      botDueAt: null,
+      botVersion: null,
       pendingSave: null,
     };
     registry.rooms.set(code, room);
     return room;
   }
 
-  /** Récupère une salle en mémoire, ou la restaure depuis Supabase si configuré. */
+  /**
+   * Récupère une salle : en mémoire, ou restaurée depuis la persistance.
+   *
+   * Quand la persistance est active, l'exemplaire en mémoire n'est pas
+   * forcément le bon. Plusieurs instances servent le même site, et celle qui
+   * reçoit l'action n'est pas toujours celle qui tient le flux temps réel :
+   * sa copie peut avoir plusieurs coups de retard. Elle écraserait alors le
+   * travail de l'autre, et les joueurs verraient des cartes revenir en
+   * arrière. On compare donc les versions et on adopte la plus avancée.
+   */
   async function findRoom(code: string): Promise<Room<S, V, E> | undefined> {
     const existing = registry.rooms.get(code);
-    if (existing) return existing;
+
+    if (existing && !persistence.enabled) {
+      catchUp(existing);
+      return existing;
+    }
 
     const restored = await persistence.load(code);
+
+    if (existing) {
+      if (restored && adapter.version(restored.state) > adapter.version(existing.state)) {
+        existing.state = restored.state;
+        existing.tokens = new Map(Object.entries(restored.tokens));
+        existing.botDueAt = null;
+        existing.botVersion = null;
+        schedule(existing);
+      }
+      catchUp(existing);
+      return existing;
+    }
+
     if (!restored) return undefined;
 
     const room: Room<S, V, E> = {
@@ -218,6 +266,8 @@ export function createRoomStore<S, A, E, V>(adapter: GameAdapter<S, A, E, V>) {
       timer: null,
       botTimer: null,
       dropTimers: new Map(),
+      botDueAt: null,
+      botVersion: null,
       pendingSave: null,
     };
     // Après une restauration, tout le monde est réputé déconnecté sauf les bots.
@@ -228,6 +278,7 @@ export function createRoomStore<S, A, E, V>(adapter: GameAdapter<S, A, E, V>) {
     }
     registry.rooms.set(code, room);
     schedule(room);
+    catchUp(room);
     return room;
   }
 
@@ -316,22 +367,79 @@ export function createRoomStore<S, A, E, V>(adapter: GameAdapter<S, A, E, V>) {
 
   function scheduleBot(room: Room<S, V, E>) {
     const botId = adapter.botPendingPlayerId(room.state);
-    if (!botId) return;
+    if (!botId) {
+      room.botDueAt = null;
+      room.botVersion = null;
+      return;
+    }
 
     const delay = BOT_MIN_DELAY + Math.random() * (BOT_MAX_DELAY - BOT_MIN_DELAY);
     const versionAtSchedule = adapter.version(room.state);
+    room.botDueAt = Date.now() + delay;
+    room.botVersion = versionAtSchedule;
 
     room.botTimer = setTimeout(() => {
       room.botTimer = null;
       if (adapter.version(room.state) !== versionAtSchedule) return;
-      const action = adapter.decideBot(room.state, botId);
-      if (!action) return;
-      const result = adapter.reduce(room.state, action, Date.now());
-      if (adapter.version(result.state) === adapter.version(room.state)) return;
-      room.state = result.state;
-      commit(room, result.events);
+      playBot(room, botId, versionAtSchedule);
     }, delay);
     room.botTimer.unref?.();
+  }
+
+  /** Joue le coup du bot, si l'état n'a pas bougé depuis qu'on l'a décidé. */
+  function playBot(room: Room<S, V, E>, botId: string, expectedVersion: number): boolean {
+    if (adapter.version(room.state) !== expectedVersion) return false;
+    const action = adapter.decideBot(room.state, botId);
+    if (!action) return false;
+    const result = adapter.reduce(room.state, action, Date.now());
+    if (adapter.version(result.state) === adapter.version(room.state)) return false;
+    room.state = result.state;
+    commit(room, result.events);
+    return true;
+  }
+
+  /**
+   * Rattrape le temps écoulé sans minuterie vivante.
+   *
+   * Sur un hébergeur sans serveur, la fonction se fige dès la réponse envoyée :
+   * le chrono du tour et les bots, qui reposent sur des `setTimeout`, ne
+   * s'exécutent jamais. La partie paraît alors gelée — et c'est ressenti comme
+   * une perte de connexion. À chaque requête entrante, on rejoue donc ici tout
+   * ce qui aurait dû se produire entre-temps.
+   *
+   * La boucle est bornée : une salle laissée de côté une nuit entière ne doit
+   * pas rejouer mille tours d'un coup à la première visite.
+   */
+  function catchUp(room: Room<S, V, E>): boolean {
+    let moved = false;
+    for (let guard = 0; guard < 60; guard += 1) {
+      const now = Date.now();
+
+      const deadline = adapter.nextDeadline(room.state);
+      if (deadline !== null && deadline <= now) {
+        const result = adapter.reduce(room.state, adapter.tickAction, now);
+        if (adapter.version(result.state) !== adapter.version(room.state)) {
+          room.state = result.state;
+          commit(room, result.events);
+          moved = true;
+          continue;
+        }
+      }
+
+      const botId = adapter.botPendingPlayerId(room.state);
+      if (botId) {
+        // Échéance absente ou décidée pour un état qui a changé depuis : la
+        // minuterie est morte avec l'instance précédente, on en repose une.
+        if (room.botDueAt === null || room.botVersion !== adapter.version(room.state)) {
+          scheduleBot(room);
+        } else if (room.botDueAt <= now && playBot(room, botId, room.botVersion)) {
+          moved = true;
+          continue;
+        }
+      }
+      break;
+    }
+    return moved;
   }
 
   /* ---------------------------------------------------------------- */
@@ -465,24 +573,57 @@ export function createRoomStore<S, A, E, V>(adapter: GameAdapter<S, A, E, V>) {
     );
     if (stillOpen) return;
 
-    room.state = adapter.setConnected(room.state, playerId, false);
-    commit(room, []);
+    // Une coupure de flux n'est pas une absence : on laisse au navigateur le
+    // temps de se reconnecter avant d'en tirer la moindre conséquence.
+    const existing = room.dropTimers.get(playerId);
+    if (existing) clearTimeout(existing);
+    const timer = setTimeout(() => {
+      room.dropTimers.delete(playerId);
+      dropPlayer(room, playerId);
+    }, PRESENCE_GRACE_MS);
+    timer.unref?.();
+    room.dropTimers.set(playerId, timer);
+  }
 
-    // Dans le salon d'attente, un joueur qui ferme l'onglet libère sa place.
-    if (adapter.isLobby(room.state)) {
-      const timer = setTimeout(() => {
-        room.dropTimers.delete(playerId);
-        const player = adapter.players(room.state).find((entry) => entry.id === playerId);
-        if (!player || player.connected) return;
-        room.state = adapter.removePlayer(room.state, playerId);
-        for (const [token, id] of room.tokens) {
-          if (id === playerId) room.tokens.delete(token);
-        }
-        commit(room, []);
-      }, LOBBY_DROP_GRACE_MS);
-      timer.unref?.();
-      room.dropTimers.set(playerId, timer);
+  /**
+   * Le joueur n'est pas revenu : on le déclare absent, et dans le salon
+   * d'attente on libère sa place.
+   */
+  function dropPlayer(room: Room<S, V, E>, playerId: string) {
+    // Revenu entre-temps : il n'a jamais été absent.
+    const back = Array.from(room.subscribers).some((entry) => entry.playerId === playerId);
+    if (back) return;
+
+    const lobby = adapter.isLobby(room.state);
+    if (lobby) {
+      room.state = adapter.removePlayer(room.state, playerId);
+      for (const [token, id] of room.tokens) {
+        if (id === playerId) room.tokens.delete(token);
+      }
+    } else {
+      room.state = adapter.setConnected(room.state, playerId, false);
     }
+    commit(room, []);
+  }
+
+  /**
+   * Signe de vie par la voie HTTP.
+   *
+   * Un joueur qui envoie un coup ou vient lire l'état est là, même si son flux
+   * temps réel est coupé — ce qui arrive sans cesse derrière un proxy ou en
+   * passant du wifi aux données mobiles. Sans cela il restait marqué absent,
+   * et son tour expirait en huit secondes au lieu de soixante.
+   */
+  function touchPlayer(room: Room<S, V, E>, playerId: string | null) {
+    if (!playerId) return;
+    const pending = room.dropTimers.get(playerId);
+    if (pending) {
+      clearTimeout(pending);
+      room.dropTimers.delete(playerId);
+    }
+    const before = room.state;
+    room.state = adapter.setConnected(room.state, playerId, true);
+    if (before !== room.state) commit(room, []);
   }
 
   /** Sonde publique d'une salle : jamais de main, jamais de jeton. */
@@ -516,6 +657,7 @@ export function createRoomStore<S, A, E, V>(adapter: GameAdapter<S, A, E, V>) {
     canStart,
     attach,
     detach,
+    touchPlayer,
     flush,
     probe,
     buildView: (room: Room<S, V, E>, viewerId: string | null) =>
